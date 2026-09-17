@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, type FormEvent } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { Fraunces, Inter } from 'next/font/google'
 import { createClient } from '@/lib/supabase/client'
 
@@ -22,10 +22,9 @@ type Plan = 'free' | 'pro' | 'premium'
 
 export default function LoginPage() {
   const router = useRouter()
-  const searchParams = useSearchParams()
   const supabase = createClient()
 
-  const requestedPlan = searchParams.get('plan') as Plan | null
+  const [requestedPlan, setRequestedPlan] = useState<Plan | null>(null)
   const [mode, setMode] = useState<Mode>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -34,10 +33,14 @@ export default function LoginPage() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    if (requestedPlan) {
+    const params = new URLSearchParams(window.location.search)
+    const plan = params.get('plan')
+
+    if (plan === 'free' || plan === 'pro' || plan === 'premium') {
+      setRequestedPlan(plan)
       setMode('signup')
     }
-  }, [requestedPlan])
+  }, [])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
