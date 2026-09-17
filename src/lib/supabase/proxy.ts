@@ -15,7 +15,7 @@ export async function updateSession(request: NextRequest) {
           return request.cookies.getAll()
         },
 
-        setAll(cookiesToSet, headers) {
+        setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value }) => {
             request.cookies.set(name, value)
           })
@@ -27,45 +27,44 @@ export async function updateSession(request: NextRequest) {
           cookiesToSet.forEach(({ name, value, options }) => {
             supabaseResponse.cookies.set(name, value, options)
           })
-
-          if (headers) {
-            headers.forEach(([key, value]) => {
-              supabaseResponse.headers.set(key, value)
-            })
-          }
         },
       },
     }
   )
 
   /*
-   * Belangrijk:
-   * getClaims() valideert de JWT en zorgt ervoor dat een verlopen
-   * access token indien nodig wordt vernieuwd.
+   * getClaims() geeft bij een geldige sessie direct de claims terug.
    *
-   * De vernieuwde cookies moeten vervolgens via supabaseResponse
-   * terug naar de browser.
+   * In jouw versie van @supabase/ssr is de returnwaarde:
+   * {
+   *   data: JwtPayload | null,
+   *   error: ...
+   * }
+   *
+   * Daarom gebruiken we data rechtstreeks als claims.
    */
   const {
-    data: { claims },
+    data: claims,
+    error: claimsError,
   } = await supabase.auth.getClaims()
 
-  const user = claims?.sub ?? null
+  const userId = claims?.sub ?? null
 
   const pathname = request.nextUrl.pathname
   const isLoginPage = pathname.startsWith('/login')
 
   /*
-   * Niet ingelogd → alleen /login toestaan.
+   * Als Supabase geen geldige sessie heeft:
+   * stuur de gebruiker naar /login.
    */
-  if (!user && !isLoginPage) {
+  if (!userId && !isLoginPage) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
 
     const redirectResponse = NextResponse.redirect(url)
 
     /*
-     * Neem eventuele Supabase cookies mee naar de redirect response.
+     * Eventuele vernieuwde Supabase cookies behouden.
      */
     supabaseResponse.cookies.getAll().forEach((cookie) => {
       redirectResponse.cookies.set(cookie)
@@ -75,9 +74,10 @@ export async function updateSession(request: NextRequest) {
   }
 
   /*
-   * Wel ingelogd → /login niet meer tonen.
+   * Als de gebruiker al ingelogd is, hoeft /login niet geopend
+   * te kunnen worden.
    */
-  if (user && isLoginPage) {
+  if (userId && isLoginPage) {
     const url = request.nextUrl.clone()
     url.pathname = '/'
 
@@ -90,6 +90,12 @@ export async function updateSession(request: NextRequest) {
     return redirectResponse
   }
 
+  /*
+   * claimsError gebruiken we hier niet om direct te redirecten.
+   * Een ontbrekende/ongeldige sessie wordt hierboven al afgehandeld
+   * doordat userId null is.
+   */
+  void claimsError
+
   return supabaseResponse
 }
-
