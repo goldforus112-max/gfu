@@ -12,7 +12,9 @@ import {
 
 import { Fraunces, Inter } from 'next/font/google';
 
-import { supabase } from '@/lib/supabase';
+import { useRouter } from 'next/navigation';
+
+import { createClient } from '@/lib/supabase/client';
 
 import {
   GOLD_PURITY,
@@ -353,6 +355,12 @@ function RefreshIcon({
 }
 
 export default function Home() {
+  const supabase = useMemo(() => createClient(), []);
+  const router = useRouter();
+
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+
   const [holdings, setHoldings] =
     useState<Holding[]>([]);
 
@@ -430,7 +438,9 @@ export default function Home() {
       try {
         const stored =
           window.localStorage.getItem(
-            MONTHLY_BUDGET_KEY
+            userId
+              ? `${MONTHLY_BUDGET_KEY}-${userId}`
+              : MONTHLY_BUDGET_KEY
           );
 
         if (!stored) return;
@@ -449,7 +459,7 @@ export default function Home() {
       } catch {
         // Keep default.
       }
-    }, []);
+    }, [userId]);
 
   const saveBudget = () => {
     const value = Number(
@@ -473,7 +483,9 @@ export default function Home() {
 
     try {
       window.localStorage.setItem(
-        MONTHLY_BUDGET_KEY,
+        userId
+          ? `${MONTHLY_BUDGET_KEY}-${userId}`
+          : MONTHLY_BUDGET_KEY,
         String(value)
       );
     } catch {
@@ -487,7 +499,7 @@ export default function Home() {
     useCallback(async () => {
       try {
         const key =
-          `goldforus-invested-${currentMonthKey}`;
+          `goldforus-invested-${userId ?? 'anonymous'}-${currentMonthKey}`;
 
         const stored =
           window.localStorage.getItem(
@@ -511,13 +523,34 @@ export default function Home() {
       } catch {
         setInvestedThisMonth(0);
       }
-    }, [currentMonthKey]);
+    }, [currentMonthKey, userId]);
 
   const loadData =
     useCallback(async () => {
       setErrorMessage('');
 
       try {
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser();
+
+        if (userError) {
+          throw new Error(
+            `Authentication: ${userError.message}`
+          );
+        }
+
+        if (!user) {
+          setUserEmail(null);
+          setUserId(null);
+          router.push('/login');
+          return;
+        }
+
+        setUserEmail(user.email ?? null);
+        setUserId(user.id);
+
         const [
           holdingsResult,
           priceResponse,
@@ -527,6 +560,7 @@ export default function Home() {
           supabase
             .from('holdings')
             .select('*')
+            .eq('user_id', user.id)
             .order('created_at', {
               ascending: false,
             }),
@@ -702,7 +736,7 @@ export default function Home() {
       } finally {
         setLoading(false);
       }
-    }, []);
+    }, [router, supabase]);
 
   const refresh =
     useCallback(async () => {
@@ -876,7 +910,7 @@ export default function Home() {
 
     try {
       window.localStorage.setItem(
-        `goldforus-invested-${currentMonthKey}`,
+        `goldforus-invested-${userId ?? 'anonymous'}-${currentMonthKey}`,
         String(next)
       );
     } catch {
@@ -919,10 +953,24 @@ export default function Home() {
     setSaving(true);
     setErrorMessage('');
 
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      setSaving(false);
+      setErrorMessage(
+        userError?.message ?? 'You must be logged in to add a holding.'
+      );
+      return;
+    }
+
     const { error } =
       await supabase
         .from('holdings')
         .insert({
+          user_id: user.id,
           metal,
           grams: gramsNum,
           purity,
@@ -978,6 +1026,20 @@ export default function Home() {
     }
 
     await loadData();
+  }
+
+  async function handleLogout() {
+    setErrorMessage('');
+
+    const { error } = await supabase.auth.signOut();
+
+    if (error) {
+      setErrorMessage(`Logout: ${error.message}`);
+      return;
+    }
+
+    router.push('/login');
+    router.refresh();
   }
 
   const metalCards: Metal[] = [
@@ -1187,6 +1249,60 @@ export default function Home() {
               gap: 10,
             }}
           >
+            {userEmail && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 9,
+                  padding: '7px 9px',
+                  border: '1px solid #292C34',
+                  borderRadius: 9,
+                  background: '#111318',
+                }}
+              >
+                <div
+                  style={{
+                    width: 24,
+                    height: 24,
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: 'rgba(214,180,92,.10)',
+                    color: '#D6B45C',
+                    fontSize: 10,
+                    fontWeight: 700,
+                  }}
+                >
+                  {(userEmail[0] ?? 'U').toUpperCase()}
+                </div>
+                <span
+                  style={{
+                    color: '#AEB2BC',
+                    fontSize: 10,
+                    maxWidth: 190,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {userEmail}
+                </span>
+                <button
+                  className="goldforus-button"
+                  type="button"
+                  onClick={handleLogout}
+                  style={{
+                    ...secondaryLinkStyle,
+                    padding: '7px 10px',
+                  }}
+                >
+                  Logout
+                </button>
+              </div>
+            )}
+
             {lastUpdated && (
               <div
                 style={{
