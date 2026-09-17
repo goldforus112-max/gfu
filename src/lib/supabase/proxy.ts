@@ -1,10 +1,10 @@
-import { createServerClient } from '@supabase/ssr'
-import { NextResponse, type NextRequest } from 'next/server'
+import { createServerClient } from '@supabase/ssr';
+import { NextResponse, type NextRequest } from 'next/server';
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
-  })
+  });
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -12,75 +12,82 @@ export async function updateSession(request: NextRequest) {
     {
       cookies: {
         getAll() {
-          return request.cookies.getAll()
+          return request.cookies.getAll();
         },
 
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value }) => {
-            request.cookies.set(name, value)
-          })
+            request.cookies.set(name, value);
+          });
 
           supabaseResponse = NextResponse.next({
             request,
-          })
+          });
 
           cookiesToSet.forEach(({ name, value, options }) => {
-            supabaseResponse.cookies.set(name, value, options)
-          })
+            supabaseResponse.cookies.set(name, value, options);
+          });
         },
       },
-    }
-  )
+    },
+  );
 
-  const {
-    data,
-    error,
-  } = await supabase.auth.getClaims()
+  const { data, error } = await supabase.auth.getClaims();
 
-  const userId = data?.claims?.sub ?? null
+  const userId = data?.claims?.sub ?? null;
+  const pathname = request.nextUrl.pathname;
 
-  const pathname = request.nextUrl.pathname
-  const isLoginPage = pathname.startsWith('/login')
+  const isLoginPage = pathname.startsWith('/login');
+  const isLandingPage = pathname === '/landing';
 
   /*
-   * Geen geldige sessie:
-   * alles behalve /login gaat naar de loginpagina.
+   * Public pages:
+   * - /landing is the public pricing/marketing page.
+   * - /login is the authentication page.
+   *
+   * The root route remains the authenticated wallet.
+   * An unauthenticated visitor is redirected from / to /landing.
    */
-  if (!userId && !isLoginPage) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
+  if (!userId && pathname === '/') {
+    const url = request.nextUrl.clone();
+    url.pathname = '/landing';
 
-    const redirectResponse = NextResponse.redirect(url)
+    const redirectResponse = NextResponse.redirect(url);
 
     supabaseResponse.cookies.getAll().forEach((cookie) => {
-      redirectResponse.cookies.set(cookie)
-    })
+      redirectResponse.cookies.set(cookie);
+    });
 
-    return redirectResponse
+    return redirectResponse;
   }
 
-  /*
-   * Wel ingelogd:
-   * /login hoeft niet meer geopend te worden.
-   */
-  if (userId && isLoginPage) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/'
+  if (!userId && !isLoginPage && !isLandingPage) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/landing';
 
-    const redirectResponse = NextResponse.redirect(url)
+    const redirectResponse = NextResponse.redirect(url);
 
     supabaseResponse.cookies.getAll().forEach((cookie) => {
-      redirectResponse.cookies.set(cookie)
-    })
+      redirectResponse.cookies.set(cookie);
+    });
 
-    return redirectResponse
+    return redirectResponse;
   }
 
-  /*
-   * Een eventuele Auth-fout betekent dat er geen bruikbare
-   * userId is. De bovenstaande redirect handelt dat af.
-   */
-  void error
+  if (userId && (isLoginPage || isLandingPage)) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/';
 
-  return supabaseResponse
+    const redirectResponse = NextResponse.redirect(url);
+
+    supabaseResponse.cookies.getAll().forEach((cookie) => {
+      redirectResponse.cookies.set(cookie);
+    });
+
+    return redirectResponse;
+  }
+
+  void error;
+
+  return supabaseResponse;
 }

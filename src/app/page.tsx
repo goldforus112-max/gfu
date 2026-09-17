@@ -1110,8 +1110,14 @@ export default function Home() {
           scroll-behavior: smooth;
         }
 
+        html,
         body {
+          width: 100%;
+          max-width: 100%;
+          min-width: 0;
           margin: 0;
+          padding: 0;
+          overflow-x: hidden;
           background: #090A0D;
         }
 
@@ -1173,12 +1179,66 @@ export default function Home() {
 
         @media (max-width: 700px) {
           .goldforus-shell {
+            width: 100% !important;
+            max-width: 100% !important;
             padding-left: 16px !important;
             padding-right: 16px !important;
+            padding-bottom: 42px !important;
+          }
+
+          .goldforus-header {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 14px !important;
+          }
+
+          .goldforus-header-brand {
+            width: 100%;
+          }
+
+          .goldforus-header-actions {
+            width: 100% !important;
+            min-width: 0 !important;
+            display: grid !important;
+            grid-template-columns: 1fr auto !important;
+            align-items: stretch !important;
+            gap: 8px !important;
+          }
+
+          .goldforus-user-card {
+            min-width: 0 !important;
+            width: 100% !important;
+            padding: 7px !important;
+          }
+
+          .goldforus-user-email {
+            min-width: 0 !important;
+            max-width: none !important;
+            flex: 1 1 auto !important;
+          }
+
+          .goldforus-user-card .goldforus-button {
+            flex: 0 0 auto;
+          }
+
+          .goldforus-live {
+            grid-column: 1 / -1;
+            justify-content: center;
+            order: 3;
+          }
+
+          .goldforus-refresh {
+            width: auto !important;
+            min-width: 96px;
+            white-space: nowrap;
           }
 
           .goldforus-hero {
             padding-top: 28px !important;
+          }
+
+          .goldforus-hero h1 {
+            font-size: clamp(42px, 12vw, 58px) !important;
           }
 
           .goldforus-kpi-grid {
@@ -1193,16 +1253,36 @@ export default function Home() {
             grid-template-columns: 1fr !important;
           }
 
+          .goldforus-portfolio-number {
+            font-size: 48px !important;
+          }
+
+          .goldforus-card {
+            min-width: 0 !important;
+          }
+
+          .goldforus-chart-wrap {
+            width: 100% !important;
+            max-width: 100% !important;
+            overflow-x: auto !important;
+          }
+        }
+
+        @media (max-width: 430px) {
           .goldforus-header-actions {
-            width: 100%;
+            grid-template-columns: 1fr !important;
           }
 
           .goldforus-refresh {
-            width: 100%;
+            width: 100% !important;
           }
 
-          .goldforus-portfolio-number {
-            font-size: 48px !important;
+          .goldforus-user-card {
+            width: 100% !important;
+          }
+
+          .goldforus-user-email {
+            font-size: 9px !important;
           }
         }
       `}</style>
@@ -1216,6 +1296,7 @@ export default function Home() {
         ========================= */}
 
         <header
+          className="goldforus-header"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -1229,6 +1310,7 @@ export default function Home() {
           }}
         >
           <div
+            className="goldforus-header-brand"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -1277,6 +1359,7 @@ export default function Home() {
           >
             {userEmail && (
               <div
+                className="goldforus-user-card"
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -1304,6 +1387,7 @@ export default function Home() {
                   {(userEmail[0] ?? 'U').toUpperCase()}
                 </div>
                 <span
+                  className="goldforus-user-email"
                   style={{
                     color: '#AEB2BC',
                     fontSize: 10,
@@ -1331,6 +1415,7 @@ export default function Home() {
 
             {lastUpdated && (
               <div
+                className="goldforus-live"
                 style={{
                   color: '#626774',
                   fontSize: 11,
