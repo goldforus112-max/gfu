@@ -1,12 +1,24 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type CSSProperties,
+  type FormEvent,
+  type ReactNode,
+} from 'react';
+
 import { Fraunces, Inter } from 'next/font/google';
+
 import { supabase } from '@/lib/supabase';
+
 import {
   GOLD_PURITY,
   SILVER_PURITY,
 } from '@/lib/purity';
+
 import TimelineChart from '@/components/timelinechart';
 
 const fraunces = Fraunces({
@@ -17,12 +29,17 @@ const fraunces = Fraunces({
 
 const inter = Inter({
   subsets: ['latin'],
-  weight: ['400', '500', '600'],
+  weight: ['400', '500', '600', '700'],
   variable: '--font-body',
 });
 
 type Metal = 'gold' | 'silver';
-type Signal = 'low' | 'high' | 'neutral' | 'unavailable';
+
+type Signal =
+  | 'low'
+  | 'high'
+  | 'neutral'
+  | 'unavailable';
 
 type Holding = {
   id: string;
@@ -51,49 +68,70 @@ type Vendor = {
   sellUrl?: string;
 };
 
-const MONTHLY_BUDGET_KEY = 'goldforus-monthly-budget-eur';
+const MONTHLY_BUDGET_KEY =
+  'goldforus-monthly-budget-eur';
 
 const vendors: Vendor[] = [
   {
     name: 'Holland Gold',
-    description: 'Buy physical gold and silver',
+    description:
+      'Physical gold and silver',
     buyUrl: 'https://www.hollandgold.nl/',
-    sellUrl: 'https://www.hollandgold.nl/',
+    sellUrl:
+      'https://www.hollandgold.nl/',
   },
 ];
 
-const eurFormatter = new Intl.NumberFormat('en-IE', {
-  style: 'currency',
-  currency: 'EUR',
-  maximumFractionDigits: 2,
-});
+const eurFormatter =
+  new Intl.NumberFormat('en-IE', {
+    style: 'currency',
+    currency: 'EUR',
+    maximumFractionDigits: 2,
+  });
 
-const numberFormatter = new Intl.NumberFormat('en-IE', {
-  maximumFractionDigits: 2,
-});
+const numberFormatter =
+  new Intl.NumberFormat('en-IE', {
+    maximumFractionDigits: 2,
+  });
 
-const percentFormatter = new Intl.NumberFormat('en-IE', {
-  maximumFractionDigits: 1,
-  signDisplay: 'always',
-});
+const percentFormatter =
+  new Intl.NumberFormat('en-IE', {
+    maximumFractionDigits: 1,
+    signDisplay: 'always',
+  });
 
 function formatMetal(metal: Metal) {
-  return metal === 'gold' ? 'Gold' : 'Silver';
+  return metal === 'gold'
+    ? 'Gold'
+    : 'Silver';
 }
 
 function formatPurity(purity: number) {
-  return purity >= 0.9995
-    ? '999.9'
-    : purity >= 0.999
-      ? '999'
-      : String(Math.round(purity * 1000));
+  if (purity >= 0.9995) return '999.9';
+  if (purity >= 0.999) return '999';
+
+  return String(
+    Math.round(purity * 1000)
+  );
 }
 
-function signalFor(price: number | null, average: number | null): Signal {
-  if (price == null || average == null || average <= 0) return 'unavailable';
+function signalFor(
+  price: number | null,
+  average: number | null
+): Signal {
+  if (
+    price == null ||
+    average == null ||
+    !Number.isFinite(price) ||
+    !Number.isFinite(average) ||
+    average <= 0
+  ) {
+    return 'unavailable';
+  }
 
   if (price > average) return 'high';
   if (price < average) return 'low';
+
   return 'neutral';
 }
 
@@ -104,7 +142,7 @@ function signalLabel(signal: Signal) {
     case 'high':
       return 'HIGH';
     case 'neutral':
-      return 'AT AVERAGE';
+      return 'AVERAGE';
     default:
       return 'NO DATA';
   }
@@ -113,228 +151,569 @@ function signalLabel(signal: Signal) {
 function signalColor(signal: Signal) {
   switch (signal) {
     case 'low':
-      return '#E07171';
+      return '#F0B46A';
+
     case 'high':
-      return '#63C58A';
+      return '#67D19A';
+
     case 'neutral':
-      return '#C9A227';
+      return '#D6B45C';
+
     default:
-      return '#8B8D98';
+      return '#7E8494';
   }
 }
 
 function signalBackground(signal: Signal) {
   switch (signal) {
     case 'low':
-      return 'rgba(224,113,113,0.10)';
+      return 'rgba(240,180,106,0.09)';
+
     case 'high':
-      return 'rgba(99,197,138,0.10)';
+      return 'rgba(103,209,154,0.08)';
+
     case 'neutral':
-      return 'rgba(201,162,39,0.10)';
+      return 'rgba(214,180,92,0.08)';
+
     default:
-      return 'rgba(139,141,152,0.08)';
+      return 'rgba(126,132,148,0.06)';
   }
 }
 
-function percentVsAverage(price: number | null, average: number | null) {
-  if (price == null || average == null || average <= 0) return null;
-  return ((price - average) / average) * 100;
+function percentVsAverage(
+  price: number | null,
+  average: number | null
+) {
+  if (
+    price == null ||
+    average == null ||
+    !Number.isFinite(price) ||
+    !Number.isFinite(average) ||
+    average <= 0
+  ) {
+    return null;
+  }
+
+  return (
+    ((price - average) / average) *
+    100
+  );
+}
+
+function Icon({
+  children,
+  size = 18,
+}: {
+  children: ReactNode;
+  size?: number;
+}) {
+  return (
+    <span
+      style={{
+        width: size,
+        height: size,
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0,
+      }}
+    >
+      {children}
+    </span>
+  );
+}
+
+function GoldIcon() {
+  return (
+    <Icon size={22}>
+      <svg
+        viewBox="0 0 24 24"
+        width="100%"
+        height="100%"
+        fill="none"
+      >
+        <circle
+          cx="12"
+          cy="12"
+          r="9"
+          stroke="currentColor"
+          strokeWidth="1.5"
+        />
+        <path
+          d="M8 12h8M10 8.5h4M10 15.5h4"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+        />
+      </svg>
+    </Icon>
+  );
+}
+
+function SilverIcon() {
+  return (
+    <Icon size={22}>
+      <svg
+        viewBox="0 0 24 24"
+        width="100%"
+        height="100%"
+        fill="none"
+      >
+        <circle
+          cx="12"
+          cy="12"
+          r="9"
+          stroke="currentColor"
+          strokeWidth="1.5"
+        />
+        <path
+          d="M8.5 15.5 15.5 8.5M9 9h.01M15 15h.01"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+        />
+      </svg>
+    </Icon>
+  );
+}
+
+function ArrowUpIcon() {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      width="14"
+      height="14"
+      fill="none"
+    >
+      <path
+        d="M4 13 9 8l3 3 4-5"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M12.5 6H16v3.5"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function RefreshIcon({
+  spinning = false,
+}: {
+  spinning?: boolean;
+}) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      width="15"
+      height="15"
+      fill="none"
+      style={{
+        animation: spinning
+          ? 'goldforus-spin 0.8s linear infinite'
+          : undefined,
+      }}
+    >
+      <path
+        d="M16 8a6 6 0 0 0-10.8-2.9L4 6.5"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+
+      <path
+        d="M4 3.5v3h3"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+
+      <path
+        d="M4 12a6 6 0 0 0 10.8 2.9l1.2-1.4"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+
+      <path
+        d="M16 16.5v-3h-3"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
 }
 
 export default function Home() {
-  const [holdings, setHoldings] = useState<Holding[]>([]);
-  const [prices, setPrices] = useState<Prices>({
-    gold: { priceEurPerGram: null, averageEurPerGram: null, fetchedAt: null },
-    silver: { priceEurPerGram: null, averageEurPerGram: null, fetchedAt: null },
-  });
+  const [holdings, setHoldings] =
+    useState<Holding[]>([]);
 
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
+  const [prices, setPrices] =
+    useState<Prices>({
+      gold: {
+        priceEurPerGram: null,
+        averageEurPerGram: null,
+        fetchedAt: null,
+      },
+      silver: {
+        priceEurPerGram: null,
+        averageEurPerGram: null,
+        fetchedAt: null,
+      },
+    });
 
-  const [monthlyBudget, setMonthlyBudget] = useState(500);
-  const [budgetInput, setBudgetInput] = useState('500');
-  const [budgetEditing, setBudgetEditing] = useState(false);
+  const [loading, setLoading] =
+    useState(true);
 
-  const [metal, setMetal] = useState<Metal>('gold');
-  const [grams, setGrams] = useState('');
-  const [purity, setPurity] = useState<number>(0.999);
-  const [label, setLabel] = useState('');
-  const [purchasePrice, setPurchasePrice] = useState('');
-  const [saving, setSaving] = useState(false);
+  const [refreshing, setRefreshing] =
+    useState(false);
 
-  const [investedThisMonth, setInvestedThisMonth] = useState(0);
+  const [errorMessage, setErrorMessage] =
+    useState('');
 
-  const purityOptions = metal === 'gold' ? GOLD_PURITY : SILVER_PURITY;
+  const [monthlyBudget, setMonthlyBudget] =
+    useState(500);
 
-  const currentMonthKey = useMemo(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  }, []);
+  const [budgetInput, setBudgetInput] =
+    useState('500');
 
-  const loadBudget = useCallback(() => {
-    try {
-      const stored = window.localStorage.getItem(MONTHLY_BUDGET_KEY);
-      if (stored) {
+  const [budgetEditing, setBudgetEditing] =
+    useState(false);
+
+  const [metal, setMetal] =
+    useState<Metal>('gold');
+
+  const [grams, setGrams] =
+    useState('');
+
+  const [purity, setPurity] =
+    useState<number>(0.999);
+
+  const [label, setLabel] =
+    useState('');
+
+  const [purchasePrice, setPurchasePrice] =
+    useState('');
+
+  const [saving, setSaving] =
+    useState(false);
+
+  const [
+    investedThisMonth,
+    setInvestedThisMonth,
+  ] = useState(0);
+
+  const purityOptions =
+    metal === 'gold'
+      ? GOLD_PURITY
+      : SILVER_PURITY;
+
+  const currentMonthKey =
+    useMemo(() => {
+      const now = new Date();
+
+      return `${now.getFullYear()}-${String(
+        now.getMonth() + 1
+      ).padStart(2, '0')}`;
+    }, []);
+
+  const loadBudget =
+    useCallback(() => {
+      try {
+        const stored =
+          window.localStorage.getItem(
+            MONTHLY_BUDGET_KEY
+          );
+
+        if (!stored) return;
+
         const value = Number(stored);
-        if (Number.isFinite(value) && value >= 0) {
+
+        if (
+          Number.isFinite(value) &&
+          value >= 0
+        ) {
           setMonthlyBudget(value);
-          setBudgetInput(String(value));
+          setBudgetInput(
+            String(value)
+          );
         }
+      } catch {
+        // Keep default.
       }
-    } catch {
-      // localStorage may be unavailable; keep the default.
-    }
-  }, []);
+    }, []);
 
   const saveBudget = () => {
-    const value = Number(budgetInput);
+    const value = Number(
+      budgetInput
+    );
 
-    if (!Number.isFinite(value) || value < 0) {
-      setBudgetInput(String(monthlyBudget));
+    if (
+      !Number.isFinite(value) ||
+      value < 0
+    ) {
+      setBudgetInput(
+        String(monthlyBudget)
+      );
+
       setBudgetEditing(false);
+
       return;
     }
 
     setMonthlyBudget(value);
 
     try {
-      window.localStorage.setItem(MONTHLY_BUDGET_KEY, String(value));
+      window.localStorage.setItem(
+        MONTHLY_BUDGET_KEY,
+        String(value)
+      );
     } catch {
-      // Keep the in-memory value if storage is unavailable.
+      // Keep in memory.
     }
 
     setBudgetEditing(false);
   };
 
-  const loadInvestedThisMonth = useCallback(async () => {
-    /*
-     * The current holdings table does not contain a purchase price/date
-     * suitable for calculating monthly investment totals. Until a
-     * transactions table is added, this value is kept in localStorage.
-     */
-    try {
-      const key = `goldforus-invested-${currentMonthKey}`;
-      const stored = window.localStorage.getItem(key);
-      const value = stored ? Number(stored) : 0;
+  const loadInvestedThisMonth =
+    useCallback(async () => {
+      try {
+        const key =
+          `goldforus-invested-${currentMonthKey}`;
 
-      if (Number.isFinite(value) && value >= 0) {
-        setInvestedThisMonth(value);
-      } else {
+        const stored =
+          window.localStorage.getItem(
+            key
+          );
+
+        const value = stored
+          ? Number(stored)
+          : 0;
+
+        if (
+          Number.isFinite(value) &&
+          value >= 0
+        ) {
+          setInvestedThisMonth(
+            value
+          );
+        } else {
+          setInvestedThisMonth(0);
+        }
+      } catch {
         setInvestedThisMonth(0);
       }
-    } catch {
-      setInvestedThisMonth(0);
-    }
-  }, [currentMonthKey]);
+    }, [currentMonthKey]);
 
-  const loadData = useCallback(async () => {
-    setErrorMessage('');
+  const loadData =
+    useCallback(async () => {
+      setErrorMessage('');
 
-    try {
-      const [holdingsResult, priceResponse, goldAverageResult, silverAverageResult] =
-        await Promise.all([
+      try {
+        const [
+          holdingsResult,
+          priceResponse,
+          goldAverageResult,
+          silverAverageResult,
+        ] = await Promise.all([
           supabase
             .from('holdings')
             .select('*')
-            .order('created_at', { ascending: false }),
+            .order('created_at', {
+              ascending: false,
+            }),
 
-          fetch('/api/prices', { cache: 'no-store' }),
+          fetch('/api/prices', {
+            cache: 'no-store',
+          }),
 
           supabase
             .from('daily_summary')
-            .select('date, avg_price')
+            .select(
+              'date, avg_price'
+            )
             .eq('metal', 'gold')
-            .order('date', { ascending: false })
+            .order('date', {
+              ascending: false,
+            })
             .limit(1)
             .maybeSingle(),
 
           supabase
             .from('daily_summary')
-            .select('date, avg_price')
+            .select(
+              'date, avg_price'
+            )
             .eq('metal', 'silver')
-            .order('date', { ascending: false })
+            .order('date', {
+              ascending: false,
+            })
             .limit(1)
             .maybeSingle(),
         ]);
 
-      if (holdingsResult.error) {
-        setErrorMessage(holdingsResult.error.message);
+        if (holdingsResult.error) {
+          throw new Error(
+            `Holdings: ${holdingsResult.error.message}`
+          );
+        }
+
+        if (
+          goldAverageResult.error
+        ) {
+          console.warn(
+            'Could not load gold daily average:',
+            goldAverageResult.error
+          );
+        }
+
+        if (
+          silverAverageResult.error
+        ) {
+          console.warn(
+            'Could not load silver daily average:',
+            silverAverageResult.error
+          );
+        }
+
+        if (!priceResponse.ok) {
+          throw new Error(
+            `GoldPriceZ request failed (${priceResponse.status})`
+          );
+        }
+
+        const data =
+          await priceResponse.json();
+
+        const goldPriceEur =
+          Number(
+            data?.gold?.eurPerGram
+          );
+
+        const silverPriceEur =
+          Number(
+            data?.silver?.eurPerGram
+          );
+
+        const usdToEur =
+          Number(
+            data?.usdToEur
+          );
+
+        const fetchedAt =
+          data?.fetchedAt ??
+          new Date().toISOString();
+
+        const goldAverageUsdOz =
+          goldAverageResult.data
+            ?.avg_price != null
+            ? Number(
+                goldAverageResult
+                  .data.avg_price
+              )
+            : null;
+
+        const silverAverageUsdOz =
+          silverAverageResult.data
+            ?.avg_price != null
+            ? Number(
+                silverAverageResult
+                  .data.avg_price
+              )
+            : null;
+
+        const goldAverageEur =
+          goldAverageUsdOz != null &&
+          Number.isFinite(
+            usdToEur
+          ) &&
+          usdToEur > 0
+            ? (goldAverageUsdOz /
+                31.1034768) *
+              usdToEur
+            : null;
+
+        const silverAverageEur =
+          silverAverageUsdOz != null &&
+          Number.isFinite(
+            usdToEur
+          ) &&
+          usdToEur > 0
+            ? (silverAverageUsdOz /
+                31.1034768) *
+              usdToEur
+            : null;
+
+        setHoldings(
+          (holdingsResult.data ??
+            []) as Holding[]
+        );
+
+        setPrices({
+          gold: {
+            priceEurPerGram:
+              Number.isFinite(
+                goldPriceEur
+              ) &&
+              goldPriceEur > 0
+                ? goldPriceEur
+                : null,
+
+            averageEurPerGram:
+              goldAverageEur,
+
+            fetchedAt,
+          },
+
+          silver: {
+            priceEurPerGram:
+              Number.isFinite(
+                silverPriceEur
+              ) &&
+              silverPriceEur > 0
+                ? silverPriceEur
+                : null,
+
+            averageEurPerGram:
+              silverAverageEur,
+
+            fetchedAt,
+          },
+        });
+      } catch (error) {
+        console.error(
+          'Could not load GoldForUs data:',
+          error
+        );
+
+        setErrorMessage(
+          error instanceof Error
+            ? error.message
+            : 'Could not load prices.'
+        );
+      } finally {
+        setLoading(false);
       }
+    }, []);
 
-      if (!priceResponse.ok) {
-        throw new Error(`GoldPriceZ request failed (${priceResponse.status})`);
+  const refresh =
+    useCallback(async () => {
+      setRefreshing(true);
+
+      try {
+        await loadData();
+      } finally {
+        setRefreshing(false);
       }
-
-      const data = await priceResponse.json();
-
-      // /api/prices normalizes the GoldPriceZ response into a stable shape.
-      const goldPriceEur = Number(data?.gold?.eurPerGram);
-      const silverPriceEur = Number(data?.silver?.eurPerGram);
-      const usdToEur = Number(data?.usdToEur);
-
-      const fetchedAt = data?.fetchedAt ?? new Date().toISOString();
-
-      const goldAverageUsdOz =
-        goldAverageResult.data?.avg_price != null
-          ? Number(goldAverageResult.data.avg_price)
-          : null;
-      const silverAverageUsdOz =
-        silverAverageResult.data?.avg_price != null
-          ? Number(silverAverageResult.data.avg_price)
-          : null;
-
-      // daily_summary.avg_price is stored in USD/troy oz by the existing app.
-      // Convert it to EUR/gram using the same live FX rate supplied by GoldPriceZ.
-      const goldAverageEur =
-        goldAverageUsdOz != null && Number.isFinite(usdToEur) && usdToEur > 0
-          ? (goldAverageUsdOz / 31.1034768) * usdToEur
-          : null;
-
-      const silverAverageEur =
-        silverAverageUsdOz != null && Number.isFinite(usdToEur) && usdToEur > 0
-          ? (silverAverageUsdOz / 31.1034768) * usdToEur
-          : null;
-
-      setHoldings((holdingsResult.data ?? []) as Holding[]);
-
-      setPrices({
-        gold: {
-          priceEurPerGram:
-            Number.isFinite(goldPriceEur) && goldPriceEur > 0
-              ? goldPriceEur
-              : null,
-          averageEurPerGram: goldAverageEur,
-          fetchedAt,
-        },
-        silver: {
-          priceEurPerGram:
-            Number.isFinite(silverPriceEur) && silverPriceEur > 0
-              ? silverPriceEur
-              : null,
-          averageEurPerGram: silverAverageEur,
-          fetchedAt,
-        },
-      });
-    } catch (error) {
-      console.error('Could not load prices:', error);
-      setErrorMessage(
-        error instanceof Error ? error.message : 'Could not load prices.'
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const refresh = useCallback(async () => {
-    setRefreshing(true);
-
-    try {
-      await loadData();
-    } finally {
-      setRefreshing(false);
-    }
-  }, [loadData]);
+    }, [loadData]);
 
   useEffect(() => {
     loadBudget();
@@ -342,7 +721,9 @@ export default function Home() {
     loadData();
 
     const channel = supabase
-      .channel('goldforus-price-changes')
+      .channel(
+        'goldforus-price-changes'
+      )
       .on(
         'postgres_changes',
         {
@@ -357,43 +738,140 @@ export default function Home() {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(
+        channel
+      );
     };
-  }, [loadBudget, loadInvestedThisMonth, loadData]);
+  }, [
+    loadBudget,
+    loadInvestedThisMonth,
+    loadData,
+  ]);
 
-  const priceInEurPerGram = (metalType: Metal) => {
+  const priceInEurPerGram = (
+    metalType: Metal
+  ) => {
     return metalType === 'gold'
       ? prices.gold.priceEurPerGram
       : prices.silver.priceEurPerGram;
   };
 
-  const valueForEur = (h: Holding) => {
-    const price = priceInEurPerGram(h.metal);
+  const valueForEur = (
+    holding: Holding
+  ) => {
+    const price =
+      priceInEurPerGram(
+        holding.metal
+      );
 
     if (price == null) return null;
 
-    return h.grams * h.purity * price;
+    return (
+      holding.grams *
+      holding.purity *
+      price
+    );
   };
 
-  const totalValueEur = holdings.reduce((sum, h) => {
-    const value = valueForEur(h);
-    return value == null ? sum : sum + value;
-  }, 0);
+  const totalValueEur =
+    holdings.reduce(
+      (sum, holding) => {
+        const value =
+          valueForEur(holding);
+
+        return value == null
+          ? sum
+          : sum + value;
+      },
+      0
+    );
 
   const hasValueData =
     holdings.length > 0 &&
-    holdings.some((h) => valueForEur(h) != null);
+    holdings.some(
+      (holding) =>
+        valueForEur(holding) != null
+    );
 
-  const remainingBudget = Math.max(monthlyBudget - investedThisMonth, 0);
+  const goldGrams =
+    holdings
+      .filter(
+        (h) => h.metal === 'gold'
+      )
+      .reduce(
+        (sum, h) =>
+          sum +
+          h.grams * h.purity,
+        0
+      );
+
+  const silverGrams =
+    holdings
+      .filter(
+        (h) => h.metal === 'silver'
+      )
+      .reduce(
+        (sum, h) =>
+          sum +
+          h.grams * h.purity,
+        0
+      );
+
+  const remainingBudget =
+    Math.max(
+      monthlyBudget -
+        investedThisMonth,
+      0
+    );
+
   const budgetPercent =
     monthlyBudget > 0
-      ? Math.min((investedThisMonth / monthlyBudget) * 100, 100)
+      ? Math.min(
+          (investedThisMonth /
+            monthlyBudget) *
+            100,
+          100
+        )
       : 0;
 
-  function recordInvestment(amount: number) {
-    if (!Number.isFinite(amount) || amount <= 0) return;
+  const portfolioGoldValue =
+    holdings
+      .filter(
+        (h) => h.metal === 'gold'
+      )
+      .reduce(
+        (sum, h) =>
+          sum +
+          (valueForEur(h) ?? 0),
+        0
+      );
 
-    const next = investedThisMonth + amount;
+  const portfolioSilverValue =
+    holdings
+      .filter(
+        (h) => h.metal === 'silver'
+      )
+      .reduce(
+        (sum, h) =>
+          sum +
+          (valueForEur(h) ?? 0),
+        0
+      );
+
+  function recordInvestment(
+    amount: number
+  ) {
+    if (
+      !Number.isFinite(amount) ||
+      amount <= 0
+    ) {
+      return;
+    }
+
+    const next =
+      investedThisMonth +
+      amount;
+
     setInvestedThisMonth(next);
 
     try {
@@ -402,246 +880,997 @@ export default function Home() {
         String(next)
       );
     } catch {
-      // Keep the in-memory value.
+      // Keep in memory.
     }
   }
 
-  async function handleAddHolding(e: FormEvent) {
+  async function handleAddHolding(
+    e: FormEvent
+  ) {
     e.preventDefault();
 
-    const gramsNum = Number(grams);
-    const paidNum = purchasePrice ? Number(purchasePrice) : 0;
+    const gramsNum =
+      Number(grams);
 
-    if (!Number.isFinite(gramsNum) || gramsNum <= 0) return;
+    const paidNum =
+      purchasePrice
+        ? Number(purchasePrice)
+        : 0;
+
+    if (
+      !Number.isFinite(
+        gramsNum
+      ) ||
+      gramsNum <= 0
+    ) {
+      return;
+    }
 
     if (
       purchasePrice &&
-      (!Number.isFinite(paidNum) || paidNum <= 0)
+      (!Number.isFinite(
+        paidNum
+      ) ||
+        paidNum <= 0)
     ) {
       return;
     }
 
     setSaving(true);
+    setErrorMessage('');
 
-    const { error } = await supabase.from('holdings').insert({
-      metal,
-      grams: gramsNum,
-      purity,
-      label: label.trim() || null,
-    });
+    const { error } =
+      await supabase
+        .from('holdings')
+        .insert({
+          metal,
+          grams: gramsNum,
+          purity,
+          label:
+            label.trim() || null,
+        });
 
     setSaving(false);
 
     if (error) {
-      setErrorMessage(error.message);
+      setErrorMessage(
+        error.message
+      );
+
       return;
     }
 
     if (paidNum > 0) {
-      recordInvestment(paidNum);
+      recordInvestment(
+        paidNum
+      );
     }
 
     setGrams('');
     setLabel('');
     setPurchasePrice('');
+
     await loadData();
   }
 
-  async function handleDelete(id: string) {
-    await supabase.from('holdings').delete().eq('id', id);
+  async function handleDelete(
+    id: string
+  ) {
+    const confirmed =
+      window.confirm(
+        'Remove this holding from your portfolio?'
+      );
+
+    if (!confirmed) return;
+
+    const { error } =
+      await supabase
+        .from('holdings')
+        .delete()
+        .eq('id', id);
+
+    if (error) {
+      setErrorMessage(
+        error.message
+      );
+
+      return;
+    }
+
     await loadData();
   }
 
-  const metalCards: Metal[] = ['gold', 'silver'];
+  const metalCards: Metal[] = [
+    'gold',
+    'silver',
+  ];
+
+  const lastUpdated =
+    prices.gold.fetchedAt
+      ? new Date(
+          prices.gold.fetchedAt
+        ).toLocaleTimeString(
+          'en-IE',
+          {
+            hour: '2-digit',
+            minute: '2-digit',
+          }
+        )
+      : null;
 
   return (
-    <div
+    <main
       className={`${fraunces.variable} ${inter.variable}`}
-      style={{
-        minHeight: '100vh',
-        background: '#14151A',
-        color: '#EDEDE9',
-        fontFamily: 'var(--font-body), system-ui, sans-serif',
-        padding: '36px 20px 96px',
-      }}
+      style={pageStyle}
     >
-      <div style={{ maxWidth: 760, margin: '0 auto' }}>
-        <header style={{ marginBottom: 28 }}>
+      <style>{`
+        @keyframes goldforus-spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+
+        @keyframes goldforus-pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: .45; }
+        }
+
+        * {
+          box-sizing: border-box;
+        }
+
+        html {
+          scroll-behavior: smooth;
+        }
+
+        body {
+          margin: 0;
+          background: #090A0D;
+        }
+
+        button,
+        input,
+        select {
+          font: inherit;
+        }
+
+        button:focus-visible,
+        input:focus-visible,
+        select:focus-visible,
+        a:focus-visible {
+          outline: 2px solid #D6B45C;
+          outline-offset: 2px;
+        }
+
+        .goldforus-card {
+          transition:
+            transform 180ms ease,
+            border-color 180ms ease,
+            background 180ms ease,
+            box-shadow 180ms ease;
+        }
+
+        .goldforus-card:hover {
+          border-color: #343741 !important;
+          box-shadow:
+            0 14px 45px rgba(0,0,0,.16);
+        }
+
+        .goldforus-button {
+          transition:
+            transform 150ms ease,
+            opacity 150ms ease,
+            background 150ms ease;
+        }
+
+        .goldforus-button:hover:not(:disabled) {
+          transform: translateY(-1px);
+        }
+
+        .goldforus-button:active:not(:disabled) {
+          transform: translateY(0);
+        }
+
+        .goldforus-input {
+          transition:
+            border-color 150ms ease,
+            box-shadow 150ms ease;
+        }
+
+        .goldforus-input:focus {
+          border-color: rgba(214,180,92,.7) !important;
+          box-shadow:
+            0 0 0 3px rgba(214,180,92,.08);
+          outline: none;
+        }
+
+        @media (max-width: 700px) {
+          .goldforus-shell {
+            padding-left: 16px !important;
+            padding-right: 16px !important;
+          }
+
+          .goldforus-hero {
+            padding-top: 28px !important;
+          }
+
+          .goldforus-kpi-grid {
+            grid-template-columns: 1fr !important;
+          }
+
+          .goldforus-market-grid {
+            grid-template-columns: 1fr !important;
+          }
+
+          .goldforus-form-grid {
+            grid-template-columns: 1fr !important;
+          }
+
+          .goldforus-header-actions {
+            width: 100%;
+          }
+
+          .goldforus-refresh {
+            width: 100%;
+          }
+
+          .goldforus-portfolio-number {
+            font-size: 48px !important;
+          }
+        }
+      `}</style>
+
+      <div
+        className="goldforus-shell"
+        style={shellStyle}
+      >
+        {/* =========================
+            TOP NAV
+        ========================= */}
+
+        <header
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent:
+              'space-between',
+            gap: 20,
+            padding:
+              '22px 0 18px',
+            borderBottom:
+              '1px solid #1B1D23',
+          }}
+        >
           <div
             style={{
               display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'flex-start',
-              gap: 16,
+              alignItems: 'center',
+              gap: 12,
             }}
           >
-            <div>
-              <p
-                style={{
-                  color: '#8B8D98',
-                  fontSize: 13,
-                  margin: 0,
-                  marginBottom: 7,
-                  letterSpacing: '0.02em',
-                }}
-              >
-                GOLD FOR US
-              </p>
-
-              <h1
-                style={{
-                  fontFamily: 'var(--font-display), Georgia, serif',
-                  fontSize: 'clamp(36px, 8vw, 56px)',
-                  fontWeight: 600,
-                  lineHeight: 1.02,
-                  letterSpacing: '-0.03em',
-                  margin: 0,
-                }}
-              >
-                Invest with a plan.
-              </h1>
-
-              <p
-                style={{
-                  color: '#8B8D98',
-                  fontSize: 14,
-                  lineHeight: 1.5,
-                  marginTop: 10,
-                  maxWidth: 520,
-                }}
-              >
-                Track your metals, compare today&apos;s price with the daily
-                average, and keep your monthly investment limit visible.
-              </p>
+            <div
+              style={logoStyle}
+            >
+              <GoldIcon />
             </div>
 
+            <div>
+              <div
+                style={{
+                  fontSize: 13,
+                  fontWeight: 700,
+                  letterSpacing:
+                    '0.13em',
+                }}
+              >
+                GOLDFORUS
+              </div>
+
+              <div
+                style={{
+                  color: '#686D7B',
+                  fontSize: 10,
+                  marginTop: 2,
+                  letterSpacing:
+                    '0.04em',
+                }}
+              >
+                METAL PORTFOLIO
+              </div>
+            </div>
+          </div>
+
+          <div
+            className="goldforus-header-actions"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+            }}
+          >
+            {lastUpdated && (
+              <div
+                style={{
+                  color: '#626774',
+                  fontSize: 11,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                }}
+              >
+                <span
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: '50%',
+                    background:
+                      '#67D19A',
+                    boxShadow:
+                      '0 0 8px rgba(103,209,154,.45)',
+                  }}
+                />
+
+                Live · {lastUpdated}
+              </div>
+            )}
+
             <button
+              className="goldforus-button goldforus-refresh"
               type="button"
               onClick={refresh}
               disabled={refreshing}
               style={{
-                ...secondaryButtonStyle,
-                opacity: refreshing ? 0.55 : 1,
+                ...refreshButtonStyle,
+                opacity:
+                  refreshing
+                    ? 0.55
+                    : 1,
               }}
             >
-              {refreshing ? 'Refreshing…' : 'Refresh'}
+              <RefreshIcon
+                spinning={
+                  refreshing
+                }
+              />
+
+              {refreshing
+                ? 'Updating'
+                : 'Refresh'}
             </button>
           </div>
         </header>
 
+        {/* =========================
+            HERO
+        ========================= */}
+
+        <section
+          className="goldforus-hero"
+          style={{
+            padding:
+              '56px 0 38px',
+          }}
+        >
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 7,
+              color: '#D6B45C',
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing:
+                '0.13em',
+              marginBottom: 15,
+            }}
+          >
+            <span
+              style={{
+                width: 18,
+                height: 1,
+                background:
+                  '#D6B45C',
+              }}
+            />
+
+            PERSONAL METALS DASHBOARD
+          </div>
+
+          <h1
+            style={{
+              fontFamily:
+                'var(--font-display), Georgia, serif',
+              fontSize:
+                'clamp(44px, 7vw, 76px)',
+              lineHeight: 0.98,
+              letterSpacing:
+                '-0.045em',
+              fontWeight: 600,
+              maxWidth: 800,
+              margin: 0,
+            }}
+          >
+            Your wealth,
+            <br />
+            <span
+              style={{
+                color: '#D6B45C',
+              }}
+            >
+              in precious metals.
+            </span>
+          </h1>
+
+          <p
+            style={{
+              maxWidth: 610,
+              color: '#777C89',
+              fontSize: 14,
+              lineHeight: 1.7,
+              margin:
+                '20px 0 0',
+            }}
+          >
+            Track the value of your
+            physical gold and silver,
+            monitor market prices and
+            stay within your monthly
+            investment plan.
+          </p>
+        </section>
+
+        {/* =========================
+            ERROR
+        ========================= */}
+
         {errorMessage && (
-          <div style={noticeStyle}>
-            <strong>Supabase error</strong>
-            <span>{errorMessage}</span>
+          <div
+            style={noticeStyle}
+          >
+            <div
+              style={{
+                color: '#F0A0A0',
+                fontWeight: 700,
+                fontSize: 12,
+              }}
+            >
+              Data connection issue
+            </div>
+
+            <div
+              style={{
+                color: '#A4A7B1',
+                fontSize: 12,
+              }}
+            >
+              {errorMessage}
+            </div>
           </div>
         )}
 
-        {/* Monthly investment plan */}
-        <section style={{ ...panelStyle, marginBottom: 18 }}>
+        {/* =========================
+            MAIN KPI GRID
+        ========================= */}
+
+        <section
+          className="goldforus-kpi-grid"
+          style={{
+            display: 'grid',
+            gridTemplateColumns:
+              '1.35fr 1fr 1fr',
+            gap: 12,
+            marginBottom: 14,
+          }}
+        >
+          {/* TOTAL VALUE */}
+
+          <div
+            className="goldforus-card"
+            style={{
+              ...cardStyle,
+              padding: 26,
+              position: 'relative',
+              overflow: 'hidden',
+            }}
+          >
+            <div
+              style={{
+                position: 'absolute',
+                width: 230,
+                height: 230,
+                right: -90,
+                top: -100,
+                borderRadius: '50%',
+                background:
+                  'rgba(214,180,92,.07)',
+                filter: 'blur(1px)',
+              }}
+            />
+
+            <p
+              style={eyebrowStyle}
+            >
+              TOTAL PORTFOLIO VALUE
+            </p>
+
+            <div
+              className="goldforus-portfolio-number"
+              style={{
+                fontFamily:
+                  'var(--font-display), Georgia, serif',
+                fontSize: 58,
+                lineHeight: 1,
+                letterSpacing:
+                  '-0.04em',
+                marginTop: 17,
+                position:
+                  'relative',
+              }}
+            >
+              {loading
+                ? '—'
+                : hasValueData
+                  ? eurFormatter.format(
+                      totalValueEur
+                    )
+                  : '€—'}
+            </div>
+
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                marginTop: 18,
+              }}
+            >
+              <span
+                style={{
+                  display:
+                    'inline-flex',
+                  alignItems:
+                    'center',
+                  gap: 5,
+                  color:
+                    '#67D19A',
+                  background:
+                    'rgba(103,209,154,.08)',
+                  border:
+                    '1px solid rgba(103,209,154,.15)',
+                  borderRadius: 99,
+                  padding:
+                    '5px 9px',
+                  fontSize: 10,
+                  fontWeight: 600,
+                }}
+              >
+                <ArrowUpIcon />
+                LIVE VALUE
+              </span>
+
+              <span
+                style={{
+                  color:
+                    '#626774',
+                  fontSize: 11,
+                }}
+              >
+                {holdings.length}{' '}
+                {holdings.length ===
+                1
+                  ? 'position'
+                  : 'positions'}
+              </span>
+            </div>
+          </div>
+
+          {/* GOLD */}
+
+          <div
+            className="goldforus-card"
+            style={{
+              ...cardStyle,
+              padding: 22,
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent:
+                  'space-between',
+                alignItems:
+                  'flex-start',
+              }}
+            >
+              <div
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 12,
+                  display:
+                    'flex',
+                  alignItems:
+                    'center',
+                  justifyContent:
+                    'center',
+                  background:
+                    'rgba(214,180,92,.09)',
+                  color:
+                    '#D6B45C',
+                  border:
+                    '1px solid rgba(214,180,92,.13)',
+                }}
+              >
+                <GoldIcon />
+              </div>
+
+              <span
+                style={{
+                  color: '#555A67',
+                  fontSize: 10,
+                  letterSpacing:
+                    '0.08em',
+                  fontWeight: 600,
+                }}
+              >
+                GOLD
+              </span>
+            </div>
+
+            <div
+              style={{
+                fontFamily:
+                  'var(--font-display), Georgia, serif',
+                fontSize: 30,
+                marginTop: 22,
+              }}
+            >
+              {eurFormatter.format(
+                portfolioGoldValue
+              )}
+            </div>
+
+            <div
+              style={{
+                display: 'flex',
+                justifyContent:
+                  'space-between',
+                marginTop: 8,
+                gap: 10,
+              }}
+            >
+              <span
+                style={{
+                  color:
+                    '#696E7B',
+                  fontSize: 11,
+                }}
+              >
+                Fine weight
+              </span>
+
+              <span
+                style={{
+                  color:
+                    '#B8BBC3',
+                  fontSize: 11,
+                }}
+              >
+                {numberFormatter.format(
+                  goldGrams
+                )}
+                g
+              </span>
+            </div>
+          </div>
+
+          {/* SILVER */}
+
+          <div
+            className="goldforus-card"
+            style={{
+              ...cardStyle,
+              padding: 22,
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent:
+                  'space-between',
+                alignItems:
+                  'flex-start',
+              }}
+            >
+              <div
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 12,
+                  display:
+                    'flex',
+                  alignItems:
+                    'center',
+                  justifyContent:
+                    'center',
+                  background:
+                    'rgba(160,168,184,.07)',
+                  color:
+                    '#AEB4C2',
+                  border:
+                    '1px solid rgba(160,168,184,.13)',
+                }}
+              >
+                <SilverIcon />
+              </div>
+
+              <span
+                style={{
+                  color: '#555A67',
+                  fontSize: 10,
+                  letterSpacing:
+                    '0.08em',
+                  fontWeight: 600,
+                }}
+              >
+                SILVER
+              </span>
+            </div>
+
+            <div
+              style={{
+                fontFamily:
+                  'var(--font-display), Georgia, serif',
+                fontSize: 30,
+                marginTop: 22,
+              }}
+            >
+              {eurFormatter.format(
+                portfolioSilverValue
+              )}
+            </div>
+
+            <div
+              style={{
+                display: 'flex',
+                justifyContent:
+                  'space-between',
+                marginTop: 8,
+                gap: 10,
+              }}
+            >
+              <span
+                style={{
+                  color:
+                    '#696E7B',
+                  fontSize: 11,
+                }}
+              >
+                Fine weight
+              </span>
+
+              <span
+                style={{
+                  color:
+                    '#B8BBC3',
+                  fontSize: 11,
+                }}
+              >
+                {numberFormatter.format(
+                  silverGrams
+                )}
+                g
+              </span>
+            </div>
+          </div>
+        </section>
+
+        {/* =========================
+            MONTHLY PLAN
+        ========================= */}
+
+        <section
+          className="goldforus-card"
+          style={{
+            ...cardStyle,
+            padding: 22,
+            marginBottom: 32,
+          }}
+        >
           <div
             style={{
               display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              gap: 16,
+              justifyContent:
+                'space-between',
+              alignItems:
+                'flex-start',
+              gap: 20,
               flexWrap: 'wrap',
             }}
           >
             <div>
-              <p style={eyebrowStyle}>MONTHLY PLAN</p>
+              <p
+                style={eyebrowStyle}
+              >
+                MONTHLY INVESTMENT PLAN
+              </p>
 
-              {budgetEditing ? (
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <span style={{ color: '#8B8D98' }}>€</span>
-                  <input
-                    autoFocus
-                    type="number"
-                    min="0"
-                    step="10"
-                    value={budgetInput}
-                    onChange={(e) => setBudgetInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') saveBudget();
-                      if (e.key === 'Escape') setBudgetEditing(false);
-                    }}
-                    style={{
-                      ...inputStyle,
-                      width: 130,
-                      fontSize: 20,
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={saveBudget}
-                    style={smallPrimaryButtonStyle}
-                  >
-                    Save
-                  </button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setBudgetInput(String(monthlyBudget));
-                    setBudgetEditing(true);
-                  }}
-                  style={{
-                    background: 'none',
-                    border: 0,
-                    padding: 0,
-                    color: '#EDEDE9',
-                    cursor: 'pointer',
-                    fontFamily: 'var(--font-display), Georgia, serif',
-                    fontSize: 32,
-                    fontWeight: 600,
-                  }}
-                  title="Edit monthly investment limit"
-                >
-                  {eurFormatter.format(monthlyBudget)}
-                  <span
-                    style={{
-                      fontFamily: 'var(--font-body), system-ui, sans-serif',
-                      fontSize: 12,
-                      color: '#8B8D98',
-                      marginLeft: 8,
-                      fontWeight: 400,
-                    }}
-                  >
-                    edit
-                  </span>
-                </button>
-              )}
-            </div>
-
-            <div style={{ textAlign: 'right' }}>
-              <p style={eyebrowStyle}>REMAINING</p>
               <div
                 style={{
-                  fontFamily: 'var(--font-display), Georgia, serif',
-                  fontSize: 28,
+                  display: 'flex',
+                  alignItems:
+                    'baseline',
+                  gap: 8,
+                  marginTop: 8,
                 }}
               >
-                {eurFormatter.format(remainingBudget)}
+                {budgetEditing ? (
+                  <>
+                    <span
+                      style={{
+                        color:
+                          '#777C89',
+                        fontSize: 18,
+                      }}
+                    >
+                      €
+                    </span>
+
+                    <input
+                      autoFocus
+                      type="number"
+                      min="0"
+                      step="10"
+                      value={
+                        budgetInput
+                      }
+                      onChange={(e) =>
+                        setBudgetInput(
+                          e.target.value
+                        )
+                      }
+                      onKeyDown={(e) => {
+                        if (
+                          e.key ===
+                          'Enter'
+                        ) {
+                          saveBudget();
+                        }
+
+                        if (
+                          e.key ===
+                          'Escape'
+                        ) {
+                          setBudgetEditing(
+                            false
+                          );
+                        }
+                      }}
+                      className="goldforus-input"
+                      style={{
+                        ...inputStyle,
+                        width: 130,
+                        fontSize: 22,
+                      }}
+                    />
+
+                    <button
+                      className="goldforus-button"
+                      type="button"
+                      onClick={
+                        saveBudget
+                      }
+                      style={
+                        smallPrimaryButtonStyle
+                      }
+                    >
+                      Save
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBudgetInput(
+                        String(
+                          monthlyBudget
+                        )
+                      );
+
+                      setBudgetEditing(
+                        true
+                      );
+                    }}
+                    style={{
+                      background:
+                        'none',
+                      border: 0,
+                      padding: 0,
+                      color:
+                        '#F1F0EA',
+                      cursor:
+                        'pointer',
+                      fontFamily:
+                        'var(--font-display), Georgia, serif',
+                      fontSize: 27,
+                      fontWeight: 600,
+                    }}
+                  >
+                    {eurFormatter.format(
+                      monthlyBudget
+                    )}
+
+                    <span
+                      style={{
+                        fontFamily:
+                          'var(--font-body), system-ui, sans-serif',
+                        color:
+                          '#666B78',
+                        fontSize: 10,
+                        marginLeft: 8,
+                        fontWeight: 500,
+                        letterSpacing:
+                          '0.06em',
+                      }}
+                    >
+                      EDIT
+                    </span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div
+              style={{
+                textAlign: 'right',
+              }}
+            >
+              <div
+                style={{
+                  color:
+                    '#666B78',
+                  fontSize: 10,
+                  letterSpacing:
+                    '0.08em',
+                  fontWeight: 600,
+                }}
+              >
+                REMAINING
+              </div>
+
+              <div
+                style={{
+                  fontFamily:
+                    'var(--font-display), Georgia, serif',
+                  fontSize: 25,
+                  marginTop: 4,
+                }}
+              >
+                {eurFormatter.format(
+                  remainingBudget
+                )}
               </div>
             </div>
           </div>
 
           <div
             style={{
-              height: 6,
-              background: '#2A2B33',
+              height: 7,
+              background:
+                '#272A31',
               borderRadius: 99,
               overflow: 'hidden',
-              marginTop: 22,
+              marginTop: 24,
             }}
           >
             <div
               style={{
                 width: `${budgetPercent}%`,
                 height: '100%',
-                background: '#EDEDE9',
+                background:
+                  'linear-gradient(90deg, #B7953F, #E0C46B)',
                 borderRadius: 99,
-                transition: 'width 180ms ease',
+                transition:
+                  'width 250ms ease',
               }}
             />
           </div>
@@ -649,694 +1878,1379 @@ export default function Home() {
           <div
             style={{
               display: 'flex',
-              justifyContent: 'space-between',
+              justifyContent:
+                'space-between',
               gap: 12,
-              marginTop: 9,
-              color: '#8B8D98',
-              fontSize: 12,
+              marginTop: 10,
             }}
           >
-            <span>
-              Invested this month {eurFormatter.format(investedThisMonth)}
-            </span>
-            <span>{Math.round(budgetPercent)}%</span>
-          </div>
-        </section>
-
-        {/* Portfolio value */}
-        <section
-          style={{
-            padding: '20px 2px 24px',
-            marginBottom: 4,
-          }}
-        >
-          <p style={eyebrowStyle}>PORTFOLIO VALUE · EUR</p>
-          <div
-            style={{
-              fontFamily: 'var(--font-display), Georgia, serif',
-              fontSize: 'clamp(42px, 10vw, 64px)',
-              lineHeight: 1,
-              letterSpacing: '-0.03em',
-            }}
-          >
-            {loading
-              ? '—'
-              : hasValueData
-                ? eurFormatter.format(totalValueEur)
-                : '€—'}
-          </div>
-
-          <p
-            style={{
-              color: '#8B8D98',
-              fontSize: 12,
-              marginTop: 8,
-            }}
-          >
-            {holdings.length}{' '}
-            {holdings.length === 1 ? 'holding' : 'holdings'}
-          </p>
-        </section>
-
-        {/* Price signals */}
-        <section style={{ marginBottom: 32 }}>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'end',
-              gap: 12,
-              marginBottom: 12,
-            }}
-          >
-            <div>
-              <p style={eyebrowStyle}>MARKET SIGNAL</p>
-              <h2 style={sectionTitleStyle}>Today vs daily average</h2>
-            </div>
             <span
               style={{
-                color: '#8B8D98',
+                color:
+                  '#666B78',
                 fontSize: 11,
-                textAlign: 'right',
               }}
             >
-              EUR per gram
+              {eurFormatter.format(
+                investedThisMonth
+              )}{' '}
+              invested this month
+            </span>
+
+            <span
+              style={{
+                color:
+                  '#A5A8B2',
+                fontSize: 11,
+                fontWeight: 600,
+              }}
+            >
+              {Math.round(
+                budgetPercent
+              )}
+              %
             </span>
           </div>
+        </section>
+
+        {/* =========================
+            MARKET
+        ========================= */}
+
+        <section
+          style={{
+            marginBottom: 38,
+          }}
+        >
+          <SectionHeader
+            eyebrow="LIVE MARKET"
+            title="Gold & silver prices"
+            description="Current spot price compared with the latest stored daily average."
+          />
 
           <div
+            className="goldforus-market-grid"
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+              gridTemplateColumns:
+                '1fr 1fr',
               gap: 12,
             }}
           >
-            {metalCards.map((m) => {
-              const point = prices[m];
-              const signal = signalFor(
-                point.priceEurPerGram,
-                point.averageEurPerGram
-              );
-              const difference = percentVsAverage(
-                point.priceEurPerGram,
-                point.averageEurPerGram
-              );
-              const currentEurGram = point.priceEurPerGram;
-              const averageEurGram = point.averageEurPerGram;
+            {metalCards.map(
+              (m) => {
+                const point =
+                  prices[m];
 
-              return (
-                <div
-                  key={m}
-                  style={{
-                    ...panelStyle,
-                    borderColor:
-                      signal === 'unavailable'
-                        ? '#2A2B33'
-                        : signalColor(signal),
-                    background: signalBackground(signal),
-                    padding: 20,
-                  }}
-                >
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      gap: 12,
-                    }}
-                  >
-                    <div>
-                      <div
-                        style={{
-                          fontFamily:
-                            'var(--font-display), Georgia, serif',
-                          fontSize: 24,
-                        }}
-                      >
-                        {formatMetal(m)}
-                      </div>
+                const signal =
+                  signalFor(
+                    point.priceEurPerGram,
+                    point.averageEurPerGram
+                  );
 
-                      <div
-                        style={{
-                          color: '#8B8D98',
-                          fontSize: 12,
-                          marginTop: 3,
-                        }}
-                      >
-                        Price per gram
-                      </div>
-                    </div>
+                const difference =
+                  percentVsAverage(
+                    point.priceEurPerGram,
+                    point.averageEurPerGram
+                  );
 
-                    <div
-                      style={{
-                        padding: '6px 9px',
-                        borderRadius: 99,
-                        color: signalColor(signal),
-                        border: `1px solid ${signalColor(signal)}`,
-                        fontSize: 11,
-                        fontWeight: 600,
-                        letterSpacing: '0.05em',
-                      }}
-                    >
-                      {signalLabel(signal)}
-                    </div>
-                  </div>
-
-                  <div
-                    style={{
-                      marginTop: 22,
-                      display: 'grid',
-                      gridTemplateColumns: '1fr 1fr',
-                      gap: 16,
-                    }}
-                  >
-                    <div>
-                      <div style={metricLabelStyle}>TODAY</div>
-                      <div style={largePriceStyle}>
-                        {currentEurGram == null
-                          ? '€—'
-                          : eurFormatter.format(currentEurGram)}
-                      </div>
-                    </div>
-
-                    <div>
-                      <div style={metricLabelStyle}>DAILY AVERAGE</div>
-                      <div style={largePriceStyle}>
-                        {averageEurGram == null
-                          ? '€—'
-                          : eurFormatter.format(averageEurGram)}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div
-                    style={{
-                      marginTop: 17,
-                      paddingTop: 14,
-                      borderTop: '1px solid #2A2B33',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      gap: 12,
-                      fontSize: 12,
-                    }}
-                  >
-                    <span style={{ color: '#8B8D98' }}>
-                      Difference from average
-                    </span>
-
-                    <span
-                      style={{
-                        color: signalColor(signal),
-                        fontWeight: 600,
-                      }}
-                    >
-                      {difference == null
-                        ? '—'
-                        : `${percentFormatter.format(difference)}%`}
-                    </span>
-                  </div>
-
-                  <div
-                    style={{
-                      color: '#8B8D98',
-                      fontSize: 11,
-                      lineHeight: 1.45,
-                      marginTop: 12,
-                    }}
-                  >
-                    {signal === 'low'
-                      ? 'Below the daily average — your BUY signal.'
-                      : signal === 'high'
-                        ? 'Above the daily average — your SELL signal.'
-                        : signal === 'neutral'
-                          ? 'At the daily average.'
-                          : 'Add price history to calculate the signal.'}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          <p
-            style={{
-              color: '#656772',
-              fontSize: 11,
-              lineHeight: 1.5,
-              margin: '12px 2px 0',
-            }}
-          >
-            All prices shown here are EUR per gram. The LOW/HIGH indicator
-            compares the current price with your stored daily average.
-          </p>
-        </section>
-
-        <TimelineChart />
-
-        {/* Buy section */}
-        <section style={{ marginBottom: 34 }}>
-          <div style={{ marginBottom: 12 }}>
-            <p style={eyebrowStyle}>BUY</p>
-            <h2 style={sectionTitleStyle}>Where to buy</h2>
-            <p
-              style={{
-                color: '#8B8D98',
-                fontSize: 13,
-                marginTop: 5,
-              }}
-            >
-              When you decide to invest, use a vendor link to continue to their
-              store.
-            </p>
-          </div>
-
-          <div style={{ display: 'grid', gap: 10 }}>
-            {vendors.map((vendor) => (
-              <div
-                key={vendor.name}
-                style={{
-                  ...panelStyle,
-                  padding: '15px 16px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: 16,
-                  flexWrap: 'wrap',
-                }}
-              >
-                <div>
-                  <div style={{ fontWeight: 600 }}>{vendor.name}</div>
-                  <div
-                    style={{
-                      color: '#8B8D98',
-                      fontSize: 12,
-                      marginTop: 3,
-                    }}
-                  >
-                    {vendor.description}
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <a
-                    href={vendor.buyUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    style={linkButtonStyle}
-                  >
-                    Buy →
-                  </a>
-
-                  {vendor.sellUrl && (
-                    <a
-                      href={vendor.sellUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      style={secondaryLinkStyle}
-                    >
-                      Sell →
-                    </a>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* Add holding / purchase */}
-        <section style={{ ...panelStyle, marginBottom: 34 }}>
-          <h2 style={sectionTitleStyle}>Record a purchase</h2>
-          <p
-            style={{
-              color: '#8B8D98',
-              fontSize: 12,
-              lineHeight: 1.5,
-              marginTop: 5,
-              marginBottom: 18,
-            }}
-          >
-            Add the metal to your holdings. If you enter what you paid, the
-            amount is also counted against this month&apos;s investment budget.
-          </p>
-
-          <form
-            onSubmit={handleAddHolding}
-            style={{
-              display: 'grid',
-              gap: 14,
-            }}
-          >
-            <div style={{ display: 'flex', gap: 8 }}>
-              {(['gold', 'silver'] as Metal[]).map((m) => (
-                <button
-                  type="button"
-                  key={m}
-                  onClick={() => {
-                    setMetal(m);
-                    setPurity(0.999);
-                  }}
-                  style={{
-                    flex: 1,
-                    padding: '11px 12px',
-                    borderRadius: 8,
-                    border: `1px solid ${
-                      metal === m
-                        ? m === 'gold'
-                          ? '#C9A227'
-                          : '#9CA3AF'
-                        : '#2A2B33'
-                    }`,
-                    background:
-                      metal === m
-                        ? m === 'gold'
-                          ? 'rgba(201,162,39,0.12)'
-                          : 'rgba(156,163,175,0.12)'
-                        : 'transparent',
-                    color:
-                      metal === m
-                        ? m === 'gold'
-                          ? '#C9A227'
-                          : '#9CA3AF'
-                        : '#EDEDE9',
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                    textTransform: 'capitalize',
-                  }}
-                >
-                  {m}
-                </button>
-              ))}
-            </div>
-
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-                gap: 12,
-              }}
-            >
-              <label style={labelStyle}>
-                Grams
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  value={grams}
-                  onChange={(e) => setGrams(e.target.value)}
-                  required
-                  placeholder="e.g. 10"
-                  style={inputStyle}
-                />
-              </label>
-
-              <label style={labelStyle}>
-                Purity
-                <select
-                  value={purity}
-                  onChange={(e) => setPurity(Number(e.target.value))}
-                  style={inputStyle}
-                >
-                  {Object.entries(purityOptions).map(
-                    ([optLabel, value]) => (
-                      <option key={optLabel} value={value}>
-                        {optLabel}
-                      </option>
-                    )
-                  )}
-                </select>
-              </label>
-
-              <label style={labelStyle}>
-                What you paid (€)
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={purchasePrice}
-                  onChange={(e) => setPurchasePrice(e.target.value)}
-                  placeholder="e.g. 750"
-                  style={inputStyle}
-                />
-              </label>
-            </div>
-
-            <label style={labelStyle}>
-              Label
-              <input
-                type="text"
-                value={label}
-                onChange={(e) => setLabel(e.target.value)}
-                placeholder="e.g. 10g gold bar"
-                style={inputStyle}
-              />
-            </label>
-
-            <button
-              type="submit"
-              disabled={saving}
-              style={{
-                ...primaryButtonStyle,
-                opacity: saving ? 0.6 : 1,
-              }}
-            >
-              {saving ? 'Saving…' : 'Add purchase'}
-            </button>
-          </form>
-        </section>
-
-        {/* Holdings */}
-        <section>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'end',
-              marginBottom: 12,
-            }}
-          >
-            <div>
-              <p style={eyebrowStyle}>PORTFOLIO</p>
-              <h2 style={sectionTitleStyle}>Your holdings</h2>
-            </div>
-          </div>
-
-          {loading ? (
-            <p style={{ color: '#8B8D98' }}>Loading…</p>
-          ) : holdings.length === 0 ? (
-            <p style={{ color: '#8B8D98' }}>
-              Nothing added yet. Record your first purchase above.
-            </p>
-          ) : (
-            <div style={{ display: 'grid', gap: 10 }}>
-              {holdings.map((h) => {
-                const value = valueForEur(h);
-                const accent = h.metal === 'gold' ? '#C9A227' : '#9CA3AF';
+                const isGold =
+                  m === 'gold';
 
                 return (
                   <div
-                    key={h.id}
+                    key={m}
+                    className="goldforus-card"
                     style={{
-                      ...panelStyle,
-                      padding: '14px 16px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: 14,
+                      ...cardStyle,
+                      padding: 24,
+                      background:
+                        `linear-gradient(145deg, ${signalBackground(signal)}, #111217 70%)`,
                     }}
                   >
-                    <div style={{ minWidth: 0 }}>
+                    <div
+                      style={{
+                        display:
+                          'flex',
+                        alignItems:
+                          'center',
+                        justifyContent:
+                          'space-between',
+                        gap: 12,
+                      }}
+                    >
                       <div
                         style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 8,
+                          display:
+                            'flex',
+                          alignItems:
+                            'center',
+                          gap: 12,
                         }}
                       >
-                        <span
+                        <div
                           style={{
-                            width: 8,
-                            height: 8,
-                            flex: '0 0 auto',
-                            borderRadius: '50%',
-                            background: accent,
-                          }}
-                        />
-
-                        <span
-                          style={{
-                            fontWeight: 500,
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
+                            width: 42,
+                            height: 42,
+                            borderRadius:
+                              12,
+                            display:
+                              'flex',
+                            alignItems:
+                              'center',
+                            justifyContent:
+                              'center',
+                            color:
+                              isGold
+                                ? '#D6B45C'
+                                : '#AEB4C2',
+                            background:
+                              isGold
+                                ? 'rgba(214,180,92,.08)'
+                                : 'rgba(174,180,194,.07)',
                           }}
                         >
-                          {h.label || formatMetal(h.metal)}
-                        </span>
+                          {isGold ? (
+                            <GoldIcon />
+                          ) : (
+                            <SilverIcon />
+                          )}
+                        </div>
+
+                        <div>
+                          <div
+                            style={{
+                              fontSize: 15,
+                              fontWeight: 600,
+                            }}
+                          >
+                            {formatMetal(
+                              m
+                            )}
+                          </div>
+
+                          <div
+                            style={{
+                              color:
+                                '#676C79',
+                              fontSize: 10,
+                              marginTop: 3,
+                            }}
+                          >
+                            EUR / gram
+                          </div>
+                        </div>
                       </div>
 
-                      <div
+                      <span
                         style={{
-                          color: '#8B8D98',
-                          fontSize: 12,
-                          marginTop: 3,
+                          color:
+                            signalColor(
+                              signal
+                            ),
+                          border:
+                            `1px solid ${signalColor(
+                              signal
+                            )}55`,
+                          background:
+                            `${signalBackground(
+                              signal
+                            )}`,
+                          padding:
+                            '6px 9px',
+                          borderRadius:
+                            99,
+                          fontSize: 9,
+                          fontWeight: 700,
+                          letterSpacing:
+                            '0.08em',
                         }}
                       >
-                        {numberFormatter.format(h.grams)}g ·{' '}
-                        {formatPurity(h.purity)}
+                        {signalLabel(
+                          signal
+                        )}
+                      </span>
+                    </div>
+
+                    <div
+                      style={{
+                        display:
+                          'grid',
+                        gridTemplateColumns:
+                          '1fr 1fr',
+                        gap: 20,
+                        marginTop: 28,
+                      }}
+                    >
+                      <div>
+                        <div
+                          style={
+                            metricLabelStyle
+                          }
+                        >
+                          CURRENT
+                        </div>
+
+                        <div
+                          style={{
+                            fontFamily:
+                              'var(--font-display), Georgia, serif',
+                            fontSize: 30,
+                            marginTop: 5,
+                          }}
+                        >
+                          {point.priceEurPerGram ==
+                          null
+                            ? '€—'
+                            : eurFormatter.format(
+                                point.priceEurPerGram
+                              )}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div
+                          style={
+                            metricLabelStyle
+                          }
+                        >
+                          DAILY AVG
+                        </div>
+
+                        <div
+                          style={{
+                            fontFamily:
+                              'var(--font-display), Georgia, serif',
+                            fontSize: 30,
+                            marginTop: 5,
+                          }}
+                        >
+                          {point.averageEurPerGram ==
+                          null
+                            ? '€—'
+                            : eurFormatter.format(
+                                point.averageEurPerGram
+                              )}
+                        </div>
                       </div>
                     </div>
 
                     <div
                       style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 14,
-                        flexShrink: 0,
+                        marginTop: 25,
+                        paddingTop: 15,
+                        borderTop:
+                          '1px solid #24262D',
+                        display:
+                          'flex',
+                        justifyContent:
+                          'space-between',
+                        alignItems:
+                          'center',
                       }}
                     >
                       <span
                         style={{
-                          fontFamily:
-                            'var(--font-display), Georgia, serif',
-                          fontSize: 18,
+                          color:
+                            '#666B78',
+                          fontSize: 10,
                         }}
                       >
-                        {value == null ? '—' : eurFormatter.format(value)}
+                        Difference
                       </span>
 
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(h.id)}
+                      <span
                         style={{
-                          background: 'none',
-                          border: 'none',
-                          color: '#656772',
-                          cursor: 'pointer',
+                          color:
+                            signalColor(
+                              signal
+                            ),
                           fontSize: 12,
-                          padding: 4,
+                          fontWeight: 700,
                         }}
                       >
-                        Remove
-                      </button>
+                        {difference ==
+                        null
+                          ? '—'
+                          : `${percentFormatter.format(
+                              difference
+                            )}%`}
+                      </span>
+                    </div>
+
+                    <div
+                      style={{
+                        color:
+                          '#555A67',
+                        fontSize: 10,
+                        lineHeight: 1.55,
+                        marginTop: 12,
+                      }}
+                    >
+                      {signal ===
+                      'low'
+                        ? 'Current price is below the stored daily average.'
+                        : signal ===
+                            'high'
+                          ? 'Current price is above the stored daily average.'
+                          : signal ===
+                              'neutral'
+                            ? 'Current price is at the stored daily average.'
+                            : 'Daily average will appear once historical data is available.'}
                     </div>
                   </div>
                 );
-              })}
+              }
+            )}
+          </div>
+        </section>
+
+        {/* =========================
+            TIMELINE
+        ========================= */}
+
+        <section
+          style={{
+            marginBottom: 38,
+          }}
+        >
+          <SectionHeader
+            eyebrow="PRICE HISTORY"
+            title="Market timeline"
+            description="Follow how precious-metal prices develop over time."
+          />
+
+          <div
+            className="goldforus-card"
+            style={{
+              ...cardStyle,
+              padding: 8,
+              overflow: 'hidden',
+            }}
+          >
+            <TimelineChart />
+          </div>
+        </section>
+
+        {/* =========================
+            BUY
+        ========================= */}
+
+        <section
+          style={{
+            marginBottom: 38,
+          }}
+        >
+          <SectionHeader
+            eyebrow="MARKETPLACE"
+            title="Buy physical metals"
+            description="Continue directly to a vendor when you are ready to invest."
+          />
+
+          <div
+            style={{
+              display: 'grid',
+              gap: 10,
+            }}
+          >
+            {vendors.map(
+              (vendor) => (
+                <div
+                  key={vendor.name}
+                  className="goldforus-card"
+                  style={{
+                    ...cardStyle,
+                    padding:
+                      '18px 20px',
+                    display:
+                      'flex',
+                    alignItems:
+                      'center',
+                    justifyContent:
+                      'space-between',
+                    gap: 18,
+                    flexWrap:
+                      'wrap',
+                  }}
+                >
+                  <div
+                    style={{
+                      display:
+                        'flex',
+                      alignItems:
+                        'center',
+                      gap: 13,
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius:
+                          11,
+                        display:
+                          'flex',
+                        alignItems:
+                          'center',
+                        justifyContent:
+                          'center',
+                        background:
+                          '#181A20',
+                        border:
+                          '1px solid #292C34',
+                        color:
+                          '#D6B45C',
+                        fontSize: 14,
+                        fontWeight: 700,
+                      }}
+                    >
+                      HG
+                    </div>
+
+                    <div>
+                      <div
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 600,
+                        }}
+                      >
+                        {vendor.name}
+                      </div>
+
+                      <div
+                        style={{
+                          color:
+                            '#666B78',
+                          fontSize: 10,
+                          marginTop: 3,
+                        }}
+                      >
+                        {
+                          vendor.description
+                        }
+                      </div>
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      display:
+                        'flex',
+                      gap: 8,
+                    }}
+                  >
+                    <a
+                      href={
+                        vendor.buyUrl
+                      }
+                      target="_blank"
+                      rel="noreferrer"
+                      className="goldforus-button"
+                      style={
+                        linkButtonStyle
+                      }
+                    >
+                      Buy metals
+                      <span>
+                        →
+                      </span>
+                    </a>
+
+                    {vendor.sellUrl && (
+                      <a
+                        href={
+                          vendor.sellUrl
+                        }
+                        target="_blank"
+                        rel="noreferrer"
+                        style={
+                          secondaryLinkStyle
+                        }
+                      >
+                        Sell
+                      </a>
+                    )}
+                  </div>
+                </div>
+              )
+            )}
+          </div>
+        </section>
+
+        {/* =========================
+            RECORD PURCHASE
+        ========================= */}
+
+        <section
+          style={{
+            marginBottom: 38,
+          }}
+        >
+          <SectionHeader
+            eyebrow="PORTFOLIO ACTION"
+            title="Record a purchase"
+            description="Add a physical position to your portfolio."
+          />
+
+          <div
+            className="goldforus-card"
+            style={{
+              ...cardStyle,
+              padding: 24,
+            }}
+          >
+            <form
+              onSubmit={
+                handleAddHolding
+              }
+              style={{
+                display: 'grid',
+                gap: 18,
+              }}
+            >
+              {/* METAL SWITCH */}
+
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns:
+                    '1fr 1fr',
+                  gap: 8,
+                }}
+              >
+                {(
+                  [
+                    'gold',
+                    'silver',
+                  ] as Metal[]
+                ).map((m) => {
+                  const active =
+                    metal === m;
+
+                  const isGold =
+                    m === 'gold';
+
+                  return (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => {
+                        setMetal(m);
+                        setPurity(
+                          0.999
+                        );
+                      }}
+                      className="goldforus-button"
+                      style={{
+                        padding:
+                          '13px 14px',
+                        borderRadius:
+                          10,
+                        border:
+                          active
+                            ? `1px solid ${
+                                isGold
+                                  ? '#D6B45C'
+                                  : '#9CA5B5'
+                              }`
+                            : '1px solid #292C34',
+                        background:
+                          active
+                            ? isGold
+                              ? 'rgba(214,180,92,.09)'
+                              : 'rgba(156,165,181,.07)'
+                            : '#15171C',
+                        color:
+                          active
+                            ? isGold
+                              ? '#D6B45C'
+                              : '#B7BECA'
+                            : '#858A97',
+                        cursor:
+                          'pointer',
+                        fontSize: 12,
+                        fontWeight: 600,
+                      }}
+                    >
+                      <span
+                        style={{
+                          display:
+                            'inline-flex',
+                          alignItems:
+                            'center',
+                          gap: 8,
+                        }}
+                      >
+                        {isGold ? (
+                          <GoldIcon />
+                        ) : (
+                          <SilverIcon />
+                        )}
+
+                        {formatMetal(
+                          m
+                        )}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div
+                className="goldforus-form-grid"
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns:
+                    '1fr 1fr 1fr',
+                  gap: 12,
+                }}
+              >
+                <label
+                  style={labelStyle}
+                >
+                  <span>
+                    Weight
+                  </span>
+
+                  <div
+                    style={{
+                      position:
+                        'relative',
+                    }}
+                  >
+                    <input
+                      className="goldforus-input"
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      value={grams}
+                      onChange={(e) =>
+                        setGrams(
+                          e.target
+                            .value
+                        )
+                      }
+                      required
+                      placeholder="10"
+                      style={{
+                        ...inputStyle,
+                        paddingRight: 35,
+                      }}
+                    />
+
+                    <span
+                      style={{
+                        position:
+                          'absolute',
+                        right: 12,
+                        top: '50%',
+                        transform:
+                          'translateY(-50%)',
+                        color:
+                          '#555A67',
+                        fontSize: 11,
+                      }}
+                    >
+                      g
+                    </span>
+                  </div>
+                </label>
+
+                <label
+                  style={labelStyle}
+                >
+                  <span>
+                    Purity
+                  </span>
+
+                  <select
+                    className="goldforus-input"
+                    value={purity}
+                    onChange={(e) =>
+                      setPurity(
+                        Number(
+                          e.target
+                            .value
+                        )
+                      )
+                    }
+                    style={
+                      inputStyle
+                    }
+                  >
+                    {Object.entries(
+                      purityOptions
+                    ).map(
+                      ([
+                        optLabel,
+                        value,
+                      ]) => (
+                        <option
+                          key={
+                            optLabel
+                          }
+                          value={
+                            value
+                          }
+                        >
+                          {
+                            optLabel
+                          }
+                        </option>
+                      )
+                    )}
+                  </select>
+                </label>
+
+                <label
+                  style={labelStyle}
+                >
+                  <span>
+                    Purchase price
+                  </span>
+
+                  <div
+                    style={{
+                      position:
+                        'relative',
+                    }}
+                  >
+                    <input
+                      className="goldforus-input"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={
+                        purchasePrice
+                      }
+                      onChange={(e) =>
+                        setPurchasePrice(
+                          e.target
+                            .value
+                        )
+                      }
+                      placeholder="750"
+                      style={{
+                        ...inputStyle,
+                        paddingRight: 35,
+                      }}
+                    />
+
+                    <span
+                      style={{
+                        position:
+                          'absolute',
+                        right: 12,
+                        top: '50%',
+                        transform:
+                          'translateY(-50%)',
+                        color:
+                          '#555A67',
+                        fontSize: 11,
+                      }}
+                    >
+                      €
+                    </span>
+                  </div>
+                </label>
+              </div>
+
+              <label
+                style={labelStyle}
+              >
+                <span>
+                  Position label
+                </span>
+
+                <input
+                  className="goldforus-input"
+                  type="text"
+                  value={label}
+                  onChange={(e) =>
+                    setLabel(
+                      e.target.value
+                    )
+                  }
+                  placeholder="e.g. 10g gold bar"
+                  style={
+                    inputStyle
+                  }
+                />
+              </label>
+
+              <div
+                style={{
+                  height: 1,
+                  background:
+                    '#24262D',
+                }}
+              />
+
+              <button
+                className="goldforus-button"
+                type="submit"
+                disabled={saving}
+                style={{
+                  ...primaryButtonStyle,
+                  opacity:
+                    saving
+                      ? 0.55
+                      : 1,
+                }}
+              >
+                {saving
+                  ? 'Adding position…'
+                  : '+ Add to portfolio'}
+              </button>
+            </form>
+          </div>
+        </section>
+
+        {/* =========================
+            HOLDINGS
+        ========================= */}
+
+        <section
+          style={{
+            marginBottom: 40,
+          }}
+        >
+          <SectionHeader
+            eyebrow="YOUR PORTFOLIO"
+            title="Holdings"
+            description={`${holdings.length} ${
+              holdings.length ===
+              1
+                ? 'position'
+                : 'positions'
+            } currently tracked.`}
+          />
+
+          {loading ? (
+            <div
+              className="goldforus-card"
+              style={{
+                ...cardStyle,
+                padding: 25,
+                color:
+                  '#666B78',
+                fontSize: 12,
+              }}
+            >
+              Loading portfolio…
+            </div>
+          ) : holdings.length ===
+            0 ? (
+            <div
+              className="goldforus-card"
+              style={{
+                ...cardStyle,
+                padding: 35,
+                textAlign:
+                  'center',
+              }}
+            >
+              <div
+                style={{
+                  width: 46,
+                  height: 46,
+                  borderRadius: 14,
+                  margin:
+                    '0 auto 15px',
+                  display:
+                    'flex',
+                  alignItems:
+                    'center',
+                  justifyContent:
+                    'center',
+                  background:
+                    'rgba(214,180,92,.07)',
+                  color:
+                    '#D6B45C',
+                }}
+              >
+                <GoldIcon />
+              </div>
+
+              <div
+                style={{
+                  fontSize: 14,
+                  fontWeight: 600,
+                }}
+              >
+                Your portfolio is empty
+              </div>
+
+              <div
+                style={{
+                  color:
+                    '#656A77',
+                  fontSize: 11,
+                  marginTop: 6,
+                }}
+              >
+                Add your first physical
+                metal position above.
+              </div>
+            </div>
+          ) : (
+            <div
+              style={{
+                display: 'grid',
+                gap: 8,
+              }}
+            >
+              {holdings.map(
+                (h) => {
+                  const value =
+                    valueForEur(h);
+
+                  const isGold =
+                    h.metal ===
+                    'gold';
+
+                  return (
+                    <div
+                      key={h.id}
+                      className="goldforus-card"
+                      style={{
+                        ...cardStyle,
+                        padding:
+                          '15px 17px',
+                        display:
+                          'flex',
+                        alignItems:
+                          'center',
+                        justifyContent:
+                          'space-between',
+                        gap: 18,
+                      }}
+                    >
+                      <div
+                        style={{
+                          display:
+                            'flex',
+                          alignItems:
+                            'center',
+                          gap: 12,
+                          minWidth: 0,
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: 38,
+                            height: 38,
+                            borderRadius:
+                              11,
+                            flex:
+                              '0 0 auto',
+                            display:
+                              'flex',
+                            alignItems:
+                              'center',
+                            justifyContent:
+                              'center',
+                            background:
+                              isGold
+                                ? 'rgba(214,180,92,.08)'
+                                : 'rgba(174,180,194,.07)',
+                            color:
+                              isGold
+                                ? '#D6B45C'
+                                : '#AEB4C2',
+                          }}
+                        >
+                          {isGold ? (
+                            <GoldIcon />
+                          ) : (
+                            <SilverIcon />
+                          )}
+                        </div>
+
+                        <div
+                          style={{
+                            minWidth: 0,
+                          }}
+                        >
+                          <div
+                            style={{
+                              fontSize: 12,
+                              fontWeight: 600,
+                              overflow:
+                                'hidden',
+                              textOverflow:
+                                'ellipsis',
+                              whiteSpace:
+                                'nowrap',
+                            }}
+                          >
+                            {h.label ||
+                              formatMetal(
+                                h.metal
+                              )}
+                          </div>
+
+                          <div
+                            style={{
+                              color:
+                                '#666B78',
+                              fontSize: 10,
+                              marginTop: 4,
+                            }}
+                          >
+                            {numberFormatter.format(
+                              h.grams
+                            )}
+                            g
+                            <span
+                              style={{
+                                margin:
+                                  '0 6px',
+                                color:
+                                  '#393C44',
+                              }}
+                            >
+                              ·
+                            </span>
+                            {formatPurity(
+                              h.purity
+                            )}
+                            <span
+                              style={{
+                                margin:
+                                  '0 6px',
+                                color:
+                                  '#393C44',
+                              }}
+                            >
+                              ·
+                            </span>
+                            {formatMetal(
+                              h.metal
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div
+                        style={{
+                          display:
+                            'flex',
+                          alignItems:
+                            'center',
+                          gap: 18,
+                          flexShrink: 0,
+                        }}
+                      >
+                        <div
+                          style={{
+                            textAlign:
+                              'right',
+                          }}
+                        >
+                          <div
+                            style={{
+                              fontFamily:
+                                'var(--font-display), Georgia, serif',
+                              fontSize: 18,
+                            }}
+                          >
+                            {value ==
+                            null
+                              ? '—'
+                              : eurFormatter.format(
+                                  value
+                                )}
+                          </div>
+
+                          <div
+                            style={{
+                              color:
+                                '#555A67',
+                              fontSize: 9,
+                              marginTop: 3,
+                            }}
+                          >
+                            CURRENT VALUE
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleDelete(
+                              h.id
+                            )
+                          }
+                          style={{
+                            border: 0,
+                            background:
+                              'transparent',
+                            color:
+                              '#555A67',
+                            cursor:
+                              'pointer',
+                            fontSize: 10,
+                            padding:
+                              '6px 2px',
+                          }}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  );
+                }
+              )}
             </div>
           )}
         </section>
 
+        {/* =========================
+            FOOTER
+        ========================= */}
+
         <footer
           style={{
-            color: '#555762',
-            fontSize: 11,
-            lineHeight: 1.5,
-            marginTop: 34,
-            paddingTop: 18,
-            borderTop: '1px solid #22232A',
+            borderTop:
+              '1px solid #1B1D23',
+            padding:
+              '22px 0 50px',
+            display: 'flex',
+            justifyContent:
+              'space-between',
+            gap: 20,
+            flexWrap: 'wrap',
           }}
         >
-          Prices and averages depend on the data stored in Supabase. Vendor
-          buttons open the vendor&apos;s website; this app does not process
-          purchases or payments. Data source: {" "}
-          <a
-            href="https://goldpricez.com"
-            target="_blank"
-            rel="nofollow noopener"
-            style={{ color: '#8B8D98', textDecoration: 'underline' }}
+          <div
+            style={{
+              color:
+                '#41454F',
+              fontSize: 10,
+              lineHeight: 1.6,
+              maxWidth: 560,
+            }}
           >
-            GoldPriceZ.com
-          </a>.
+            GoldForUs tracks physical
+            precious-metal holdings.
+            Market data is provided by{' '}
+            <a
+              href="https://goldpricez.com"
+              target="_blank"
+              rel="nofollow noopener"
+              style={{
+                color:
+                  '#666B78',
+                textDecoration:
+                  'underline',
+              }}
+            >
+              GoldPriceZ
+            </a>
+            .
+          </div>
+
+          <div
+            style={{
+              color:
+                '#41454F',
+              fontSize: 10,
+            }}
+          >
+            GOLDFORUS · PERSONAL
+            WEALTH TRACKER
+          </div>
         </footer>
       </div>
+    </main>
+  );
+}
+
+/* =====================================================
+   COMPONENTS
+===================================================== */
+
+function SectionHeader({
+  eyebrow,
+  title,
+  description,
+}: {
+  eyebrow: string;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div
+      style={{
+        marginBottom: 14,
+      }}
+    >
+      <div
+        style={{
+          color: '#D6B45C',
+          fontSize: 9,
+          fontWeight: 700,
+          letterSpacing:
+            '0.13em',
+          marginBottom: 6,
+        }}
+      >
+        {eyebrow}
+      </div>
+
+      <h2
+        style={{
+          margin: 0,
+          fontSize: 21,
+          lineHeight: 1.2,
+          letterSpacing:
+            '-0.02em',
+          fontWeight: 600,
+        }}
+      >
+        {title}
+      </h2>
+
+      <p
+        style={{
+          margin:
+            '6px 0 0',
+          color: '#626774',
+          fontSize: 11,
+          lineHeight: 1.55,
+        }}
+      >
+        {description}
+      </p>
     </div>
   );
 }
 
-const panelStyle: CSSProperties = {
-  background: '#1C1D24',
-  border: '1px solid #2A2B33',
-  borderRadius: 12,
-  padding: 20,
+/* =====================================================
+   STYLES
+===================================================== */
+
+const pageStyle: CSSProperties = {
+  minHeight: '100vh',
+  background:
+    'radial-gradient(circle at 50% -10%, rgba(214,180,92,.065), transparent 34%), #090A0D',
+  color: '#ECEBE7',
+  fontFamily:
+    'var(--font-body), system-ui, sans-serif',
+};
+
+const shellStyle: CSSProperties = {
+  width: '100%',
+  maxWidth: 1180,
+  margin: '0 auto',
+  padding:
+    '0 24px 70px',
+};
+
+const logoStyle: CSSProperties = {
+  width: 36,
+  height: 36,
+  borderRadius: 11,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  color: '#D6B45C',
+  background:
+    'linear-gradient(145deg, rgba(214,180,92,.13), rgba(214,180,92,.035))',
+  border:
+    '1px solid rgba(214,180,92,.18)',
+};
+
+const cardStyle: CSSProperties = {
+  background:
+    'linear-gradient(145deg, #13151A, #101115)',
+  border:
+    '1px solid #23262E',
+  borderRadius: 15,
 };
 
 const eyebrowStyle: CSSProperties = {
-  color: '#8B8D98',
-  fontSize: 10,
-  letterSpacing: '0.10em',
-  fontWeight: 600,
-  margin: 0,
-};
-
-const sectionTitleStyle: CSSProperties = {
-  fontSize: 17,
-  fontWeight: 600,
+  color: '#656A77',
+  fontSize: 9,
+  letterSpacing:
+    '0.11em',
+  fontWeight: 700,
   margin: 0,
 };
 
 const metricLabelStyle: CSSProperties = {
-  color: '#8B8D98',
-  fontSize: 10,
-  letterSpacing: '0.06em',
-  marginBottom: 5,
+  color: '#656A77',
+  fontSize: 9,
+  letterSpacing:
+    '0.08em',
+  fontWeight: 600,
 };
 
-const metricValueStyle: CSSProperties = {
-  fontFamily: 'var(--font-display), Georgia, serif',
-  fontSize: 20,
-};
-
-const largePriceStyle: CSSProperties = {
-  fontFamily: 'var(--font-display), Georgia, serif',
-  fontSize: 23,
-  letterSpacing: '-0.02em',
+const inputStyle: CSSProperties = {
+  width: '100%',
+  background: '#0C0D10',
+  border:
+    '1px solid #292C34',
+  borderRadius: 9,
+  padding:
+    '12px 13px',
+  color: '#ECEBE7',
+  fontSize: 12,
+  minWidth: 0,
 };
 
 const labelStyle: CSSProperties = {
   display: 'grid',
-  gap: 6,
-  fontSize: 12,
-  color: '#8B8D98',
-};
-
-const inputStyle: CSSProperties = {
-  background: '#14151A',
-  border: '1px solid #2A2B33',
-  borderRadius: 8,
-  padding: '11px 12px',
-  color: '#EDEDE9',
-  fontSize: 14,
-  minWidth: 0,
+  gap: 7,
+  fontSize: 10,
+  color: '#777C89',
+  fontWeight: 500,
 };
 
 const primaryButtonStyle: CSSProperties = {
-  marginTop: 2,
-  padding: '12px 16px',
-  borderRadius: 8,
-  border: 'none',
-  background: '#EDEDE9',
-  color: '#14151A',
-  fontWeight: 600,
+  width: '100%',
+  padding:
+    '13px 16px',
+  borderRadius: 9,
+  border: 0,
+  background:
+    'linear-gradient(135deg, #E7D18A, #C8A94F)',
+  color: '#17130A',
+  fontWeight: 700,
+  fontSize: 12,
   cursor: 'pointer',
+  boxShadow:
+    '0 8px 25px rgba(214,180,92,.10)',
 };
 
 const smallPrimaryButtonStyle: CSSProperties = {
-  padding: '9px 12px',
-  borderRadius: 7,
-  border: 'none',
-  background: '#EDEDE9',
-  color: '#14151A',
-  fontWeight: 600,
+  padding:
+    '9px 13px',
+  borderRadius: 8,
+  border: 0,
+  background:
+    '#E7D18A',
+  color: '#17130A',
+  fontWeight: 700,
   cursor: 'pointer',
-  fontSize: 12,
+  fontSize: 11,
 };
 
-const secondaryButtonStyle: CSSProperties = {
-  background: '#1C1D24',
-  border: '1px solid #2A2B33',
+const refreshButtonStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 7,
+  padding:
+    '8px 11px',
   borderRadius: 8,
-  padding: '9px 12px',
-  color: '#EDEDE9',
-  fontSize: 12,
+  border:
+    '1px solid #292C34',
+  background: '#13151A',
+  color: '#B5B8C0',
+  fontSize: 10,
+  fontWeight: 600,
   cursor: 'pointer',
 };
 
@@ -1344,38 +3258,46 @@ const linkButtonStyle: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  padding: '9px 14px',
+  gap: 8,
+  padding:
+    '9px 13px',
   borderRadius: 8,
-  background: '#EDEDE9',
-  color: '#14151A',
-  textDecoration: 'none',
-  fontSize: 12,
-  fontWeight: 600,
+  background:
+    '#E7D18A',
+  color: '#17130A',
+  textDecoration:
+    'none',
+  fontSize: 10,
+  fontWeight: 700,
 };
 
 const secondaryLinkStyle: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  padding: '9px 14px',
+  padding:
+    '9px 13px',
   borderRadius: 8,
-  background: 'transparent',
-  border: '1px solid #2A2B33',
-  color: '#EDEDE9',
-  textDecoration: 'none',
-  fontSize: 12,
-  fontWeight: 500,
+  background:
+    'transparent',
+  border:
+    '1px solid #292C34',
+  color: '#A9ADB7',
+  textDecoration:
+    'none',
+  fontSize: 10,
+  fontWeight: 600,
 };
 
 const noticeStyle: CSSProperties = {
   display: 'grid',
-  gap: 4,
-  background: 'rgba(224,113,113,0.08)',
-  border: '1px solid rgba(224,113,113,0.25)',
-  borderRadius: 10,
-  padding: '12px 14px',
-  color: '#EDEDE9',
-  fontSize: 12,
-  lineHeight: 1.45,
+  gap: 5,
+  background:
+    'rgba(224,113,113,.06)',
+  border:
+    '1px solid rgba(224,113,113,.18)',
+  borderRadius: 11,
+  padding:
+    '13px 15px',
   marginBottom: 18,
 };
