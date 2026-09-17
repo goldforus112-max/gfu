@@ -360,6 +360,7 @@ export default function Home() {
 
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
 
   const [holdings, setHoldings] =
     useState<Holding[]>([]);
@@ -535,21 +536,17 @@ export default function Home() {
           error: userError,
         } = await supabase.auth.getUser();
 
-        if (userError) {
-          throw new Error(
-            `Authentication: ${userError.message}`
-          );
-        }
-
-        if (!user) {
+        if (userError || !user) {
           setUserEmail(null);
           setUserId(null);
-          router.push('/login');
+          setAuthChecked(true);
+          router.replace('/login');
           return;
         }
 
         setUserEmail(user.email ?? null);
         setUserId(user.id);
+        setAuthChecked(true);
 
         const [
           holdingsResult,
@@ -1059,6 +1056,35 @@ export default function Home() {
           }
         )
       : null;
+
+  if (!authChecked || !userId) {
+    return (
+      <main
+        className={`${fraunces.variable} ${inter.variable}`}
+        style={{
+          minHeight: '100vh',
+          background: '#090A0D',
+          color: '#F1F0EA',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 24,
+          fontFamily:
+            'var(--font-body), system-ui, sans-serif',
+        }}
+      >
+        <div
+          style={{
+            textAlign: 'center',
+            color: '#777C89',
+            fontSize: 12,
+          }}
+        >
+          Checking your secure session…
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main
