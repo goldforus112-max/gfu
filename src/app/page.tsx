@@ -7,6 +7,7 @@ import {
   GOLD_PURITY,
   SILVER_PURITY,
 } from '@/lib/purity';
+import TimelineChart from '@/components/timelinechart';
 
 const fraunces = Fraunces({
   subsets: ['latin'],
@@ -888,6 +889,8 @@ export default function Home() {
             compares the current price with your stored daily average.
           </p>
         </section>
+
+        <TimelineChart />
 
         {/* Buy section */}
         <section style={{ marginBottom: 34 }}>
