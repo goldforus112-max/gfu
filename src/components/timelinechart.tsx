@@ -835,29 +835,23 @@ export default function TimelineChart() {
               />
 
               <Tooltip
-                contentStyle={{
-                  background:
-                    '#1C1D24',
-                  border:
-                    '1px solid #2A2B33',
-                  borderRadius: 8,
-                  fontSize: 12,
-                }}
-                labelStyle={{
-                  color:
-                    '#8B8D98',
-                  marginBottom: 4,
-                }}
-                formatter={(
-                  value: number,
-                  name: string
-                ) => [
-                  eurFormatter.format(
-                    value
-                  ),
-                  name,
-                ]}
-              />
+  contentStyle={{
+    background: '#1C1D24',
+    border: '1px solid #2A2B33',
+    borderRadius: 8,
+    fontSize: 12,
+  }}
+  labelStyle={{
+    color: '#8B8D98',
+    marginBottom: 4,
+  }}
+  formatter={(value, name) => [
+    value == null
+      ? '—'
+      : eurFormatter.format(Number(value)),
+    String(name),
+  ]}
+/>
 
               {showBand && (
                 <Area
